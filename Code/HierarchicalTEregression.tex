@@ -1,0 +1,188 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+%
+\documentclass[
+]{article}
+\usepackage{amsmath,amssymb}
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math} % this also loads fontspec
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+\usepackage{lmodern}
+\ifPDFTeX\else
+  % xetex/luatex font selection
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{xcolor}
+\usepackage[margin=1in]{geometry}
+\usepackage{graphicx}
+\makeatletter
+\def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
+\def\maxheight{\ifdim\Gin@nat@height>\textheight\textheight\else\Gin@nat@height\fi}
+\makeatother
+% Scale images if necessary, so that they will not overflow the page
+% margins by default, and it is still possible to overwrite the defaults
+% using explicit options in \includegraphics[width, height, ...]{}
+\setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
+% Set default figure placement to htbp
+\makeatletter
+\def\fps@figure{htbp}
+\makeatother
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\setcounter{secnumdepth}{-\maxdimen} % remove section numbering
+\ifLuaTeX
+  \usepackage{selnolig}  % disable illegal ligatures
+\fi
+\IfFileExists{bookmark.sty}{\usepackage{bookmark}}{\usepackage{hyperref}}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\urlstyle{same}
+\hypersetup{
+  pdftitle={Hierarchical Treatment Effects},
+  pdfauthor={ARH},
+  hidelinks,
+  pdfcreator={LaTeX via pandoc}}
+
+\title{Hierarchical Treatment Effects}
+\author{ARH}
+\date{2025-02-12}
+
+\begin{document}
+\maketitle
+
+\hypertarget{meta-analysis-hierarchical}{%
+\subsection{Meta-analysis:
+Hierarchical}\label{meta-analysis-hierarchical}}
+
+Let's assume that the are \(j=1,\dots,J\) treatment effects from
+different studies such that
+\[TE_j|\theta_j\sim N(\theta_j,\sigma^2/v_j),\] where
+\[\theta_j\sim N(\boldsymbol{x}_j^{\top}\boldsymbol{\beta},\tau^2).\]
+Marginalizing out \(\theta_j\), we have \[\begin{equation}
+TE_j\sim N(\boldsymbol{x}_j^{\top}\boldsymbol{\beta},\tau^2+\sigma^2/v_j)
+\end{equation}.\]
+
+Assuming that \(\beta\sim N(\boldsymbol{\beta}_0,\boldsymbol{B}_0)\) for
+computational simplicity, the posterior distribution of
+\(\boldsymbol{\beta}\) is \[N(\boldsymbol{\beta}_n,\boldsymbol{B}_n),\]
+
+where
+\(\boldsymbol{B}_n=(\boldsymbol{B}_0^{-1}+\boldsymbol{X}^{\top}\boldsymbol{\Lambda}^{-1}\boldsymbol{X})^{-1}\),
+\(\boldsymbol{\beta}_n=\boldsymbol{B}_n(\boldsymbol{B}_0^{-1}\boldsymbol{\beta}_0+\boldsymbol{X}^{\top}\boldsymbol{\Lambda}^{-1}\boldsymbol{TE})\),
+\(\boldsymbol{\Lambda}=\text{diag}\left\{\sigma^2_1\dots\sigma^2_J\right\}\)
+and \(\sigma^2_j=\frac{\sigma^2}{v_j}+\tau^2\).
+
+We can show that
+\(\boldsymbol{\beta}_n=(\boldsymbol{I}_k-\boldsymbol{W})\boldsymbol{\beta}_0+\boldsymbol{W}\hat{\boldsymbol{\beta}}\),
+where \(k\) is the dimension of \(\boldsymbol{x}\),
+\(\boldsymbol{W}=(\boldsymbol{B}_0^{-1}+\boldsymbol{X}^{\top}\boldsymbol{\Lambda}^{-1}\boldsymbol{X})^{-1}(\boldsymbol{X}^{\top}\boldsymbol{\Lambda}^{-1}\boldsymbol{X})\)
+and
+\(\hat{\boldsymbol{\beta}}=(\boldsymbol{X}^{\top}\boldsymbol{\Lambda}^{-1}\boldsymbol{X})^{-1}(\boldsymbol{X}^{\top}\boldsymbol{\Lambda}^{-1}\boldsymbol{TE})\).
+
+Note that when \(\boldsymbol{B}_0\rightarrow\infty\) (no prior
+information), then \(\boldsymbol{W}\rightarrow \boldsymbol{I}_k\), and
+consequently
+\(\boldsymbol{\beta}_n\rightarrow \hat{\boldsymbol{\beta}}\), which is
+the weighted least square estimator, such that treatment effects that
+are less reliable, that is, which have higher standard errors, have
+least weight.
+
+However, this representation can have problems implementing the sampler
+when \(\tau\rightarrow 0\). Thus, an equivalent useful representation
+that has better performance when \(\tau\rightarrow 0\) and allows a full
+Gibbs sampler is
+\[\begin{equation}TE_j\sim N(\boldsymbol{x}_j^{\top}\boldsymbol{\beta}+\tau^2\eta_j,\sigma^2/v_j),\end{equation}\]
+
+where \(\eta_j\sim N(0,1)\).
+
+Assuming conjugate priors for computational simplicity
+\(\beta\sim N(\boldsymbol{\beta}_0,\boldsymbol{B}_0)\),
+\(\tau\sim N(\tau_0,\sigma^2_{\tau_0})\),
+\(\sigma^2\sim IG(\alpha_0/2,\delta_0/2)\) and \(v_j\sim G(v/2,v/2)\).
+Then, we get the following posterior distributions:
+\[\boldsymbol{\beta}\sim N(\boldsymbol{\beta}_n, \boldsymbol{B}_n),\]
+
+where
+\(\boldsymbol{B}_n=(\boldsymbol{B}_0^{-1}+\boldsymbol{X}^{\top}\boldsymbol{\Sigma}^{-1}\boldsymbol{X})^{-1}\),
+\(\boldsymbol{\beta}_n=\boldsymbol{B}_n(\boldsymbol{B}_0^{-1}\boldsymbol{\beta}_0+\boldsymbol{X}^{\top}\boldsymbol{\Sigma}^{-1}(\boldsymbol{TE}-\tau\boldsymbol{\eta}))\),
+\(\boldsymbol{\Sigma}=\sigma^2\boldsymbol{\Psi}\) and
+\(\boldsymbol{\Psi}=\text{diag}\left\{1/v_1\dots1/v_J\right\}\).
+\[\tau\sim N(\tau_n,\sigma^2_{\tau_n}),\]
+
+where
+\(\sigma^2_{\tau_n}=(\sigma^{-2}_{\tau_0}+\boldsymbol{\eta}^{\top}\boldsymbol{\Sigma}^{-1}\boldsymbol{\eta})^{-1}\)
+\(\tau_n=\sigma^2_{\tau_n}(\sigma^{-2}_{\tau_0}\tau_0+\boldsymbol{\eta}^{\top}\boldsymbol{\Sigma}^{-1}(\boldsymbol{TE}-\boldsymbol{X}\boldsymbol{\beta}))\).
+
+\[\boldsymbol{\eta}\sim N(\boldsymbol{\eta}_n,\boldsymbol{N}_n),\]
+
+where
+\(\boldsymbol{N}_n=(\tau^2\boldsymbol{\Sigma}^{-1}+\boldsymbol{I}_J)^{-1}\)
+and
+\(\boldsymbol{\eta}_n=\tau\boldsymbol{N}_n\boldsymbol{\Sigma}^{-1}(\boldsymbol{TE}-\boldsymbol{X}\boldsymbol{\beta})\).
+
+\[\sigma^2\sim N(\alpha_n/2,\delta_n/2),\]
+
+where \(\alpha_n=\alpha_0+J\) and
+\(\delta_n=\delta_0+(\boldsymbol{TE}-\boldsymbol{X}\boldsymbol{\beta}-\tau\boldsymbol{\eta})^{\top}\boldsymbol{\Psi}^{-1}(\boldsymbol{TE}-\boldsymbol{X}\boldsymbol{\beta}-\tau\boldsymbol{\eta})\).
+
+\[v_j\sim G(v_{1n}/2,v_{2jn}/2),\]
+
+where \(v_{1n}=v+1\) and
+\(v_{2jn}=v+\sigma^{-2}(TE_j-\boldsymbol{x}_j^{\top}\boldsymbol{\beta}-\tau\eta_j)^2\).
+
+Given that most of the studies have their standard errors, we use that
+information to elicit the hyperparameters of the prior distribution of
+\(\sigma^2\). In particular, we calculate the mode and entropy of the
+squared standard errors, and find the hyperparameters \(\alpha_0\) and
+\(\delta_0\) such that minimize a weighted Euclidean distance with
+respect to the theory mode and entropy of the inverse gamma
+distribution. The choice of these statistics is to avoid restrictions
+such as \(\alpha_0>1\) or \(\alpha_0>2\), which are requirements to get
+the mean and variance in the inverse gamma distribution. The weight in
+the Euclidean distance is given by the ratio between the estimates of
+the entropy and mode using the observed standard errors. This process
+mitigates scale issues due to the entropy is the (minus) expected value
+of the log mass function units, whereas the mode is in original units.
+Thus, the objective function is
+\[\sqrt{w^2(\text{theoretical mode - observed mode(se^2)})^2+(\text{theoretical entropy - observed entropy(se^2)})},\]
+where the theoretical mode is given by \(\frac{\delta_0}{\alpha_0+1}\)
+and the theoretical entropy is
+\(\alpha_0+\log(\delta_0\Gamma(\alpha_0))-(1+\alpha_0)\psi(\alpha_0)\),
+\(\Gamma\) and \(\phi\) are the gamma and digamma functions.
+
+Given that we do not have information about \({v}_j\) for a new
+envioroment where intervention (treatment) will be applied, we have to
+integrate out \({v}_j\) to get the predictive distribution. Thus, the
+predictive distribution of the treatment effect given a new set
+\(\boldsymbol{x}_0\) is given by \[
+\begin{align}
+p(TE|\boldsymbol{x}_0,\boldsymbol{\beta},\tau^2,\sigma^2) &= \int p(TE|\boldsymbol{x}_0,\boldsymbol{\beta},\tau^2,\sigma^2,\boldsymbol{v})\pi(\boldsymbol{v}|\boldsymbol{TE},\boldsymbol{X})d\boldsymbol{v} \\
+&\approx \frac{1}{S}\frac{1}{J}\sum_{j=1}^J\sum_{s=1}^S p(TE|\boldsymbol{x}_0,\boldsymbol{\beta},\tau^2,\sigma^2,{v}_j^{(s)}),
+\end{align}
+\] where \({v}_j^{(s)}\) are draws from the posterior distribution of
+\({v}_j\).
+
+\end{document}

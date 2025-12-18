@@ -1,0 +1,120 @@
+---
+title: "Hierarchical Treatment Effects"
+author: "ARH"
+date: "2025-02-12"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+
+
+## Meta-analysis: Hierarchical
+Let's assume that the are $j=1,\dots,J$ treatment effects from different studies such that the treatment effect
+$$TE_j|\theta_j\sim N(\theta_j,\sigma_j^2),$$ 
+where $\sigma_j^2$ is known, which is a sensible assumption given the sample sizes that are used in studies to estimate treatment effects, and
+$$\theta_j\sim N(\mu,\tau^2),$$
+$$\mu\propto c_1,$$
+$$\tau\propto c_2.$$
+The posterior distribution
+$$\theta_j|Data\sim N(\hat{\theta}_j,\sigma_{\theta_j}^2),$$
+
+where $\hat{\theta}_j=\frac{\frac{1}{\sigma_j^2}TE_j+\frac{1}{\tau^2}\mu}{\frac{1}{\sigma_j^2}+\frac{1}{\tau^2}}$ and $\sigma_{\theta_j}^2=\frac{1}{\frac{1}{\sigma_j^2}+\frac{1}{\tau^2}}$.
+
+Note that $\frac{\frac{1}{\sigma_j^2}}{\frac{1}{\sigma_j^2}+\frac{1}{\tau^2}}=\frac{\tau^2}{\tau^2+\sigma^2_j}:=w_j$, $0<w_j<1$. Consequently, $\hat{\theta}_j=w_jTE_j+(1-w_j)\mu$.  Thus, if $\tau\rightarrow 0$, then $w_j\rightarrow 0$, and the posterior mean of $\theta_j\rightarrow \mu \ \forall j$, which means that there is no heterogeneity in the population treatment effects, and just sampling variability. This would suggest that the treatment effect estimates came from the same population. On the other extreme, $\tau\rightarrow \infty$, implies $w_j\rightarrow 1$, and consequently, $\theta_j\rightarrow TE_j$, which means that there is not shrinkage to $\mu$.  
+
+The posterior distribution $$\mu\sim N(\hat{\mu},\sigma_{\mu}^2),$$
+
+where $\hat{\mu} =\frac{\sum_{j=1}^J \left(\frac{1}{\sigma_j^2+\tau^2} \right)TE_j}{\sum_{j=1}^J \frac{1}{\sigma_j^2+\tau^2}}=\sum_{j=1}^J\omega_jTE_j$, $0<\omega_j<1$ and $\sum_{j=1}^J\omega_j=1$. Note that $\frac{d\omega_j}{d\sigma_j^2}<0$, that is, less precise estimates have less weight to estimate $\hat{\mu}$, and given that $\frac{1}{\sigma_{\mu}^{2}}=\sum_{j=1}^J \frac{1}{\sigma_j^2+\tau^2}$, there is less weight to estimates that contribute the most to the posterior variance of $\mu$.
+
+The posterior distribution of $\tau$ is proportional to $\sigma_{\mu}\prod_{j=1}^J (\sigma_j^2+\tau^2)^{-1/2}\exp\left(\frac{-(TE_j-\hat{\mu})^2}{2(\sigma_j^2+\tau^2)}\right)$. This is no a standard form, but we can simulate easily given a sensible grid for $\tau$ (see the code below).
+
+
+```{r pressure, echo=TRUE}
+# Bayesian hierarchical models for treatment effects
+data <- read.csv("byCountry_testscores.csv", header = TRUE)
+attach(data)
+TE <- X_beta # c(28, 8, -3, 7, -1, 1, 18, 12)
+summary(TE)
+StEr <- X_stderr # c(15, 10, 16, 11, 9, 11, 10, 18)
+summary(StEr)
+J <-length(TE)
+
+# Posterior tau
+PostTau <- function(tau){
+  Vmui <- sum((StEr^2+tau^2)^-1)
+  muhat <- sum((1/(StEr^2+tau^2))*TE)/sum((1/(StEr^2+tau^2)))
+  term <- NULL
+  for(j in 1:J){
+    termj <- (StEr[j]^2+tau^2)^(-1/2)*exp(-(TE[j]-muhat)^2/(2*(StEr[j]^2+tau^2)))
+    term <- c(term, termj)
+  }
+  denstau <- Vmui^(-0.5)*prod(term)
+  return(denstau)
+}
+tau0 <- seq(0.0001,0.015,0.0005)
+ProbTau <- sapply(tau0, PostTau)
+plot(tau0, ProbTau, type = "l", main = "Density tau", ylab = "Density", xlab = "tau")
+
+
+PostMu <- function(tau){
+  Vmui <- sum((StEr^2+tau^2)^-1)
+  muhat <- sum((1/(StEr^2+tau^2))*TE)/sum((1/(StEr^2+tau^2)))
+  mu <- rnorm(1, muhat, (1/Vmui)^0.5)
+  return(mu)
+}
+tau <- 0.005
+mu <- PostMu(tau)
+
+PostThetaj <- function(mu, tau, j){
+  thetahatj <- (TE[j]/StEr[j]^2+mu/tau^2)/(1/StEr[j]^2+1/tau^2)
+  Vj <- 1/(1/StEr[j]^2+1/tau^2)
+  thetaj <- rnorm(1, thetahatj, Vj^0.5)
+  return(thetaj)
+}
+PostThetaj(mu, tau, 7)
+
+# Gibbs sampler
+S <- 10000
+THETA <- matrix(NA, S, J)
+ProbTau <- sapply(tau0, PostTau)
+tau <- sample(tau0, S, prob = ProbTau, replace = TRUE)
+mu <- sapply(tau, PostMu)
+for(j in 1:J){
+  thetaj <- sapply(1:S, function(s){PostThetaj(mu = mu[s], tau = tau[s], j = j)})
+  THETA[,j] <- thetaj
+}
+
+summary(coda::mcmc(tau))
+summary(coda::mcmc(mu))
+summary(coda::mcmc(THETA))
+
+# # Posterior distribution of thetaj given tau, and averaging over mu
+# THETAtau <- matrix(NA, length(tau0), J)
+# for (s in 1:length(tau0)){
+#   mus <- replicate(20000, PostMu(tau0[s]))
+#   for(j in 1:J){
+#     thetajtau <- mean(sapply(1:S, function(l){PostThetaj(mu = mus[l], tau = tau0[s], j = j)}), na.rm = TRUE)
+#     THETAtau[s,j] <- thetajtau
+#   }
+# }
+# 
+# plot(tau0, THETAtau[,1], type = "l")
+
+# Predictive distribution
+j <- 3
+TEj <- c(sapply(1:S, function(s) {rnorm(1, mean = THETA[s,j], sd = StEr[j])}))
+require(ggplot2)
+dfj <- data.frame(TEj = TEj)
+ggplot(dfj, aes(x = TEj)) +
+  geom_histogram(binwidth = 0.01, fill = "blue", color = "black", ) +
+  labs(title = "Histogram: Treatment efect j", x = "Values", y = "Frequency") +
+  geom_vline(aes(xintercept = mean(TEj)), color = "red", linetype = "dashed", linewidth = 1) +
+  geom_vline(aes(xintercept = quantile(TEj, 0.025)), color = "green", linetype = "dashed", linewidth = 1) +
+  geom_vline(aes(xintercept = quantile(TEj, 0.975)), color = "green", linetype = "dashed", linewidth = 1) +
+  theme_minimal()
+summary(coda::mcmc(TEj))
+
+```
+
+
