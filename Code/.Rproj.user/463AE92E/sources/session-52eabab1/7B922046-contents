@@ -1,2 +1,0 @@
-STAR_merged1 <- STAR_merged %>% 
-  filter(schoolidk == "1" | schoolidk == "2")

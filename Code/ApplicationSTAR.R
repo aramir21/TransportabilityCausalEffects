@@ -323,40 +323,149 @@ fit <- stan(
 
 save(fit, file = "AppSTAR.RData")
 
+post <- summary(fit, pars = c("beta", "gamma", "Gamma", "Sigma_delta", "sigma"),
+                probs = c(0.025, 0.5, 0.975))$summary
+post
 
-# post <- summary(fit, pars = c("beta", "gamma", "Psi", "Sigma_delta", "sigma"),
-#                 probs = c(0.05, 0.5, 0.95))$summary
-# # Add true values
-# post_with_true <- cbind(true = c(beta_true, gamma_true, as.vector(t(Psi_true)),
-#                                  as.vector(Sigma_delta_true), sigma_true), post)
-# 
-# post_with_true
-# 
-# 
-# rstan::stan_trace(fit, pars = "beta")
-# rstan::stan_trace(fit, pars = "gamma")
-# rstan::stan_trace(fit, pars = "Psi")
-# rstan::stan_trace(fit, pars = "Sigma_delta")
-# rstan::stan_trace(fit, pars = "sigma")
-# 
-# post_delta <- rstan::extract(fit, pars = "delta")$delta
-# dim(post_delta)
-# j <- 1
-# delta_j_draws <- post_delta[, j, ]  # matrix: iterations x Kz
-# dim(delta_j_draws)
-# apply(delta_j_draws, 2, mean)      # posterior means of δ_2 components
-# apply(delta_j_draws, 2, sd)        # posterior s.d.
-# plot(density(delta_j_draws[, 1]),
-#      main = "Posterior of delta[2,1]",
-#      xlab = "delta[2,1]")
-# abline(v = mean(delta_j_draws[, 1]), col = 2, lwd = 2)
-# n <- 10
-# j_n <- stan_data$id[n]
-# z_n <- stan_data$Z[n, ]             # vector of length Kz
-# 
-# theta_n_draws <- post_delta[, j_n, ] %*% z_n  # iterations x 1
-# plot(density(theta_n_draws),
-#      main = paste0("Posterior of theta for obs ", n),
-#      xlab = "theta_n")
-# theta[n]
-# summary(coda::mcmc(theta_n_draws))
+rstan::stan_trace(fit, pars = "beta")
+rstan::stan_trace(fit, pars = "gamma")
+rstan::stan_trace(fit, pars = "Gamma")
+rstan::stan_trace(fit, pars = "Sigma_delta")
+rstan::stan_trace(fit, pars = "sigma")
+
+post_delta <- rstan::extract(fit, pars = "delta")$delta
+dim(post_delta)
+
+i <- 670
+j_i <- stan_data$id[i]
+j_i 
+delta_j_draws <- post_delta[, j_i, ]  # matrix: iterations x Kz
+dim(delta_j_draws)
+summary(coda::mcmc(delta_j_draws))
+plot(coda::mcmc(delta_j_draws))
+
+z_n <- stan_data$Z[i, ]             # vector of length Kz
+z_n
+theta_n_draws <- post_delta[, j_i, ] %*% z_n  # iterations x 1
+plot(density(theta_n_draws),
+     main = paste0("Posterior of theta for obs ", n),
+     xlab = "theta_n")
+summary(coda::mcmc(theta_n_draws))
+
+##### Nice plots of tau (treatment effects) #####
+library(dplyr)
+library(purrr)
+library(ggplot2)
+
+post_delta <- rstan::extract(fit, pars = "delta")$delta  # iter x J x Kz
+
+# choose 10 students (change these indices)
+Ni <- 10
+idx <- sample(1:NJ, Ni, replace = FALSE)
+
+# posterior draws of tau_ij (theta) for each selected student
+draws_df <- map_dfr(idx, function(i){
+  j_i <- stan_data$id[i]
+  z_i <- stan_data$Z[i, ]                          # length Kz
+  tau_draws <- as.vector(post_delta[, j_i, ] %*% z_i)
+  
+  tibble(
+    student = factor(paste0("i = ", i), levels = paste0("i = ", idx)),
+    tau = tau_draws
+  )
+})
+
+# mean + 95% equal-tail CI
+sum_df <- draws_df %>%
+  group_by(student) %>%
+  summarise(
+    mean = mean(tau),
+    lo   = quantile(tau, 0.025),
+    hi   = quantile(tau, 0.975),
+    .groups = "drop"
+  )
+
+# histogram + vlines, 5x2 panels
+ggplot(draws_df, aes(x = tau)) +
+  geom_histogram(
+    bins = 60,
+    boundary = 0,
+    closed = "left",
+    fill = "grey85",
+    color = "white",
+    linewidth = 0.25
+  ) +
+  geom_vline(data = sum_df, aes(xintercept = mean, linetype = "Mean"),
+             linewidth = 1.0, color = "black") +
+  geom_vline(data = sum_df, aes(xintercept = lo, linetype = "95% CI"),
+             linewidth = 0.8, color = "black") +
+  geom_vline(data = sum_df, aes(xintercept = hi, linetype = "95% CI"),
+             linewidth = 0.8, color = "black") +
+  facet_wrap(~ student, ncol = 2, scales = "free_y") +
+  scale_linetype_manual(values = c("95% CI" = "dashed", "Mean" = "solid")) +
+  labs(x = expression(tau[ij]), y = "Count", linetype = "") +
+  theme_minimal(base_size = 12) +
+  theme(
+    legend.position = "bottom",
+    panel.grid = element_blank()
+  ) + 
+  scale_x_continuous(
+    breaks = seq(-60, 60, by = 10),
+    minor_breaks = seq(-2, 4, by = 0.25)
+  )
+
+##### Table #####
+library(dplyr)
+library(purrr)
+library(tibble)
+library(knitr)
+library(kableExtra)
+
+# safer default names if Z/H have empty colnames
+z_names <- colnames(stan_data$Z)
+if (is.null(z_names) || any(is.na(z_names)) || any(z_names == "")) z_names <- paste0("z", 1:Kz)
+
+h_names <- colnames(stan_data$H)
+if (is.null(h_names) || any(is.na(h_names)) || any(h_names == "")) h_names <- paste0("h", 1:Kh)
+
+# drop z1 and h1 (and keep remaining order)
+z_keep <- z_names[-1]
+h_keep <- h_names[-1]
+
+tab <- map_dfr(idx, function(i){
+  
+  j_i <- stan_data$id[i]
+  z_i <- as.numeric(stan_data$Z[i, ])
+  h_j <- round(as.numeric(stan_data$H[i, ]), 2)
+  
+  tau_draws <- as.vector(post_delta[, j_i, ] %*% z_i)
+  
+  tibble(
+    i = i,
+    j = j_i,
+    mean = mean(tau_draws),
+    lo   = quantile(tau_draws, 0.025),
+    hi   = quantile(tau_draws, 0.975)
+  ) %>%
+    bind_cols(as_tibble(t(z_i), .name_repair = "minimal") %>% setNames(z_names)) %>%
+    bind_cols(as_tibble(t(h_j), .name_repair = "minimal") %>% setNames(h_names))
+})
+
+tab <- tab %>%
+  select(i, j, all_of(z_keep), all_of(h_keep), mean, lo, hi) %>%   # keep order
+  mutate(
+    across(
+      where(is.numeric) & !c(i, j),
+      ~ round(.x, 2)
+    )
+  )
+latex_tab <- kable(
+  tab,
+  format = "latex",
+  booktabs = TRUE,
+  caption = "Posterior summaries for $\\tau_{ij}$ with regressors $z_i$ and study features $h_{j_i}$.",
+  align = "r"
+) %>%
+  kable_styling(latex_options = c("hold_position", "scale_down"))
+
+save_kable(latex_tab, file = "tau_ij_table.tex")
