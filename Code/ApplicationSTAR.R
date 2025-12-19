@@ -323,9 +323,23 @@ fit <- stan(
 
 save(fit, file = "AppSTAR.RData")
 
-post <- summary(fit, pars = c("beta", "gamma", "Gamma", "Sigma_delta", "sigma"),
-                probs = c(0.025, 0.5, 0.975))$summary
-post
+load(file = "AppSTAR.RData")
+# post <- summary(fit, pars = c("beta", "gamma", "Gamma", "Sigma_delta", "sigma"),
+#                 probs = c(0.025, 0.5, 0.975))
+# post
+
+post<- rstan::extract(fit, pars = c("beta", "gamma", "Gamma", "Sigma_delta", "sigma"))
+summary(coda::mcmc(post[["beta"]]))
+summary(coda::mcmc(post[["gamma"]]))
+summary(coda::mcmc(post[["Gamma"]][,,1]))
+summary(coda::mcmc(post[["Gamma"]][,,2]))
+summary(coda::mcmc(post[["Gamma"]][,,3]))
+summary(coda::mcmc(post[["Gamma"]][,,4]))
+summary(coda::mcmc(post[["Sigma_delta"]][,,1]))
+summary(coda::mcmc(post[["Sigma_delta"]][,,2]))
+summary(coda::mcmc(post[["Sigma_delta"]][,,3]))
+summary(coda::mcmc(post[["Sigma_delta"]][,,4]))
+summary(coda::mcmc(matrix(post[["sigma"]], fit@sim[["warmup2"]], 1)))
 
 rstan::stan_trace(fit, pars = "beta")
 rstan::stan_trace(fit, pars = "gamma")
@@ -469,3 +483,49 @@ latex_tab <- kable(
   kable_styling(latex_options = c("hold_position", "scale_down"))
 
 save_kable(latex_tab, file = "tau_ij_table.tex")
+
+# posterior draws of tau_ij (theta) for each selected student
+idx <- 1:NJ
+draws_dfAll <- sapply(1:NJ, function(i){
+  j_i <- stan_data$id[i]
+  z_i <- stan_data$Z[i, ]                          
+  tau_draws <- as.vector(post_delta[, j_i, ] %*% z_i)
+  ResPost_tau <- c(mean(tau_draws), quantile(tau_draws, c(0.025, 0.975)))}
+)
+
+# tau_mat: 3 x N
+tau_mean <- as.numeric(draws_dfAll[1, ])
+tau_lo   <- as.numeric(draws_dfAll[2, ])
+tau_hi   <- as.numeric(draws_dfAll[3, ])
+
+# % of 95% CrIs that exclude 0
+exclude0 <- (tau_lo > 0) | (tau_hi < 0)
+pct_exclude0 <- 100 * mean(exclude0, na.rm = TRUE)
+pct_exclude0
+
+df_tau <- data.frame(tau_mean = tau_mean)
+
+ggplot(df_tau, aes(x = tau_mean)) +
+  geom_histogram(
+    bins = 40,
+    boundary = 0,
+    closed = "left",
+    fill = "grey85",
+    color = "white",
+    linewidth = 0.25
+  ) +
+  geom_vline(xintercept = 0, linewidth = 1.0) +
+  labs(
+    x = expression(paste("Posterior mean of ", tau[ij])),
+    y = "Count",
+    caption = sprintf("Share of 95%% credible intervals excluding 0: %.1f%%", pct_exclude0)
+  ) +
+  theme_minimal() +
+  theme(panel.grid = element_blank())
+
+c(N = length(tau_mean), n_excluding0 = sum(exclude0, na.rm = TRUE), pct_excluding0 = pct_exclude0)
+
+
+
+
+
