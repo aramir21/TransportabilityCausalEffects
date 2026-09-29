@@ -1,0 +1,52 @@
+First-stage status
+
+Estimated 
+       79 
+
+Second-stage OLS
+
+Call:
+lm(formula = stage2_formula, data = stage2_data)
+
+Residuals:
+     Min       1Q   Median       3Q      Max 
+-0.79367 -0.24620 -0.03416  0.18125  1.54091 
+
+Coefficients:
+            Estimate Std. Error t value Pr(>|t|)  
+(Intercept)   0.1983     0.1552   1.278   0.2053  
+h2           -0.0389     0.1957  -0.199   0.8430  
+h3            0.1695     0.6795   0.249   0.8037  
+h4           -1.8789     1.0163  -1.849   0.0685 .
+h5            1.0547     0.6521   1.617   0.1100  
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+Residual standard error: 0.4046 on 74 degrees of freedom
+Multiple R-squared:  0.07901,	Adjusted R-squared:  0.02923 
+F-statistic: 1.587 on 4 and 74 DF,  p-value: 0.1867
+
+
+Inverse-variance weighted sensitivity analysis
+
+Call:
+lm(formula = stage2_formula, data = stage2_wls_data, weights = 1/tau_se^2)
+
+Weighted Residuals:
+    Min      1Q  Median      3Q     Max 
+-4.6650 -1.0372  0.1749  1.1067  5.2674 
+
+Coefficients:
+            Estimate Std. Error t value Pr(>|t|)  
+(Intercept)  0.33028    0.14012   2.357   0.0211 *
+h2          -0.24801    0.17746  -1.398   0.1664  
+h3           0.05839    0.63898   0.091   0.9274  
+h4          -1.44327    1.13724  -1.269   0.2084  
+h5           1.07675    0.50912   2.115   0.0378 *
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+Residual standard error: 1.763 on 74 degrees of freedom
+Multiple R-squared:  0.09881,	Adjusted R-squared:  0.05009 
+F-statistic: 2.028 on 4 and 74 DF,  p-value: 0.09914
+

@@ -301,6 +301,7 @@ ggplot(df, aes(x = value)) +
   )
 
 # Plot tau (treatment effect)
+i <- 1
 load("PopValJ40.RData")
 true_tau40 <- PopVal[["theta"]][i]
 post_delta40 <- draws40[["delta"]][,j,]

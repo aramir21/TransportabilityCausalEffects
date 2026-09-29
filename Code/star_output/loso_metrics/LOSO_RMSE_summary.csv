@@ -1,0 +1,3 @@
+"metric","value","schools","note"
+"RMSE against held-out direct ATE estimates",0.422502160791246,79,"Includes sampling variation in the direct ATE estimates"
+"Noise-adjusted RMSE for latent ATE",0.339498620433023,79,"sqrt(max(0, mean(squared error - SE^2))); untruncated adjusted MSE = 0.115259"

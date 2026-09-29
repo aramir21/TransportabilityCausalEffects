@@ -45,15 +45,16 @@ STAR <- STAR %>%
     eth_cauc = as.integer(ethnicity == "cauc"),
     eth_afam = as.integer(ethnicity == "afam"),
     male     = as.integer(gender == "male"),
-    female   = as.integer(gender == "female")
+    female   = as.integer(gender == "female"),
+    free_lunchk = as.integer(lunchk == "yes")
   )
 attach(STAR)
 
-XV1  <- data.frame(id, 1, female, eth_cauc, eth_afam, age, Q1, Q2, Q3)
+XV1  <- data.frame(id, 1, female, eth_cauc, eth_afam, age, Q1, Q2, Q3, free_lunchk)
 XV2 <- na.omit(XV1)
 
 # Z for heterogeneous treatment effect: intercept + x1 only
-ZV1  <- cbind(id, 1, female, eth_cauc, eth_afam)   
+ZV1  <- cbind(id, 1, free_lunchk)   
 ZV2 <- na.omit(ZV1) 
 
 # Study-level covariates W_j   (Kw = 3 here)
@@ -95,12 +96,20 @@ teacher_stats_wide <- STAR2 %>%
   left_join(prop_wide(STAR2, "tethnicityk", "prop_eth_"),    by = "schoolidk") %>%
   left_join(prop_wide(STAR2, "ladderk",     "prop_ladder_"), by = "schoolidk") %>%
   left_join(prop_wide(STAR2, "degreek",     "prop_degree_"), by = "schoolidk") %>% 
-  left_join(prop_wide(STAR2, "schoolk",     "prop_schoolk_"),by = "schoolidk")
+  left_join(prop_wide(STAR2, "schoolk",     "prop_schoolk_"),by = "schoolidk") %>%
+  left_join(prop_wide(STAR2, "lunchk",     "prop_lunch_"),by = "schoolidk")
 
 summary(teacher_stats_wide)
 
 W_study <- na.omit(teacher_stats_wide)
-W_study <- W_study[,-c(3, 6, 13, 18)]
+W_study <- W_study %>% # These are the baseline categories for the categorical variables, so we drop them to avoid collinearity
+  select(
+    -prop_eth_afam,
+    -prop_ladder_apprentice,
+    -prop_degree_bachelor,
+    -`prop_schoolk_inner-city`,
+    -`prop_lunch_non-free`
+  )
 
 
 # Expand W to individual level (so we can store it in Data)
@@ -113,11 +122,21 @@ W_study <- W_study %>%
 STAR_merged <- STAR %>%
   left_join(W_study, by = "schoolidk")
 
+W_fullV1 <- STAR_merged %>%
+  select(
+    id,
+    schoolidk,
+    all_of(setdiff(names(W_study), "schoolidk"))
+  )
 
-W_fullV1 <- STAR_merged[, c(49, 44, 61:77)]   
 W_fullV2 <- na.omit(W_fullV1)
 summary(W_fullV2)
-W_fullV2 <- W_fullV2[, -16]
+names(W_fullV2)
+
+W_fullV2 <- W_fullV2 %>% 
+  select(
+    -prop_schoolk_NA
+  )
 
 # Treatment assignment
 TrV1 <- data.frame(STAR$id, STAR$smallk)
@@ -144,7 +163,8 @@ W <- W_fullV2 %>%
     prop_ladder_NA, prop_ladder_pending, prop_ladder_probation,
     prop_degree_master, `prop_degree_master+`,
     prop_degree_NA, prop_degree_specialist,
-    prop_schoolk_rural, prop_schoolk_suburban, prop_schoolk_urban
+    prop_schoolk_rural, prop_schoolk_suburban, prop_schoolk_urban,
+    prop_lunch_free
   )
 
 # Proportion of other races, mainly afroamerican, and asian, hispanic, amindian,  other,
@@ -152,50 +172,90 @@ W <- W_fullV2 %>%
 # Teachers's ladder has as baseline apprentice
 # Teachers's degree has as baseline bachelor
 # School's location has as baseline inner-city 
+# School's lunch has as baseline non-free
 
-W <- cbind(1, as.matrix(W))
+W <- cbind(intercept = 1, as.matrix(W))
 
 X <- XV2 %>%
   filter(id %in% ids_common) %>%
   arrange(id) %>%
-  select(female, eth_cauc, eth_afam, age, Q1, Q2, Q3) 
+  select(female, eth_cauc, eth_afam, age, Q1, Q2, Q3, free_lunchk) 
 
 # Ethnicity has as baseline other race (asian, hispanic, amindian,  other)
 # Q4 is the baseline for quarters of birth
 # Male is the baseline for female
-X <- cbind(1, as.matrix(X))
+# No free lunch is the baseline for free lunch
 
-Z <- X[,1:4]
+X <- cbind(
+  intercept = 1,
+  X
+)
 
-H <- W[,c(1:3, 15:17)]
+Z <- X[, c(
+  "intercept",
+  "female",
+  "eth_cauc",
+  "eth_afam",
+  "free_lunchk"
+), drop = FALSE]
+
+H <- W[, c(
+  "intercept",
+  "avg_experience",
+  "prop_eth_cauc",
+  "prop_schoolk_rural",
+  "prop_schoolk_suburban",
+  "prop_schoolk_urban",
+  "prop_lunch_free"
+), drop = FALSE]
 
 y  <- yV2  %>% filter(STAR.id %in% ids_common) %>% arrange(STAR.id) %>% pull(STAR.readk)
 Tr <- TrV2 %>% filter(STAR.id %in% ids_common) %>% arrange(STAR.id) %>% pull(STAR.smallk)
 id <- W_fullV2 %>% filter(id %in% ids_common) %>% arrange(id) %>% pull(schoolidk)
 
 # Put everything in a data.frame including w's
-Data <- data.frame(
-  id = id,
-  y  = y,
-  Tr = Tr,
-  x1 = X[,1], x2 = X[,2], x3 = X[,3], x4 = X[,4], x5 = X[,5], 
-  x6 = X[,6], x7 = X[,7], x8 = X[,8],
-  w1 = W[, 1], w2 = W[, 2], w3 = W[, 3], w4 = W[, 4], w5 = W[, 5],
-  w6 = W[, 6], w7 = W[, 7], w8 = W[, 8], w9 = W[, 9], w10 = W[, 10],
-  w11 = W[, 11], w12 = W[, 12], w13 = W[, 13], w14 = W[, 14], w15 = W[, 15],
-  w16 = W[, 16], w17 = W[, 17],
-  z1 = X[,1], z2 = X[,2], z3 = X[,3], z4 = X[,4],
-  h1 = W[,1], h2 = W[,2], h3 = W[,3],
-  h4 = W[,15], h5 = W[,16], h6 = W[,17]
+prefix_matrix <- function(M, prefix) {
+  M <- as.data.frame(M)
+  names(M) <- paste0(prefix, seq_len(ncol(M)))
+  M
+}
+
+stopifnot(
+  length(id) == length(y),
+  length(y) == length(Tr),
+  nrow(X) == length(y),
+  nrow(W) == length(y),
+  nrow(Z) == length(y),
+  nrow(H) == length(y)
 )
+
+Data <- bind_cols(
+  data.frame(
+    id = id,
+    y  = y,
+    Tr = Tr
+  ),
+  prefix_matrix(X, "x"),
+  prefix_matrix(W, "w"),
+  prefix_matrix(Z, "z"),
+  prefix_matrix(H, "h")
+)
+
 Kx <- ncol(X) 
 Kw <- ncol(W)
 Kz <- ncol(Z)
 Kh <- ncol(H)
 
-RegOLS <- lm(y ~ Tr + x2 + x3 + x4 + x5 + x6 + x7 + x8 +
-               w2 + w3 + w4 + w5 + w6 + w7 + w8 + w9 + w10 +
-               w11 + w12 + w13 + w14 + w15 + w16 + w17, data = Data)
+RegData <- data.frame(
+  y  = y,
+  Tr = Tr,
+  X[, setdiff(colnames(X), "intercept"), drop = FALSE],
+  W[, setdiff(colnames(W), "intercept"), drop = FALSE],
+  check.names = TRUE
+)
+
+RegOLS <- lm(y ~ ., data = RegData)
+
 summary(RegOLS)
 
 stan_data <- list(

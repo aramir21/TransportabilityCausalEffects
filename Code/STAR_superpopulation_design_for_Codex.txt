@@ -1,0 +1,363 @@
+SUPER-POPULATION DESIGN FOR STAR-CALIBRATED MONTE CARLO SIMULATIONS
+===================================================================
+
+PURPOSE
+-------
+This document describes the recommended super-population structure for the Monte Carlo simulation.
+
+Each Monte Carlo replication represents a new realization of a STAR-like population. Within a given replication, the different scenarios are constructed as counterfactual modifications of that same realization.
+
+The common-random-numbers design reduces irrelevant Monte Carlo variation across scenarios and makes differences in predictive performance more directly attributable to changes in:
+
+1. the number of schools J;
+2. the number of students per school N_j; and
+3. the magnitude of residual treatment-effect heterogeneity c * Sigma_0.
+
+
+1. MASTER SUPER-POPULATION SIZE
+-------------------------------
+
+For every Monte Carlo replication, first generate one complete master super-population with
+
+    J_max = 80 schools
+
+and
+
+    N_max = 450 students per school.
+
+Thus, each replication begins from a master population containing
+
+    80 * 450 = 36,000 student-level observations.
+
+All scenario-specific datasets are nested subsets or transformations of this same master population.
+
+
+2. ACROSS MONTE CARLO REPLICATIONS
+----------------------------------
+
+For replication r = 1,...,R, generate a new and independent master population.
+
+Do NOT keep the same master population across Monte Carlo replications.
+
+Across replications regenerate:
+
+    school-level covariates,
+    student-level covariates,
+    treatment assignment,
+    outcome disturbances,
+    and standardized unobserved school heterogeneity.
+
+The common-random-numbers structure applies only ACROSS SCENARIOS WITHIN a replication.
+
+
+3. SCHOOL-LEVEL VARIABLES
+-------------------------
+
+For each school j = 1,...,80, draw jointly with replacement from the empirical 79-school STAR distribution:
+
+    (H1_j, H2_j, W_j, pF_j)
+
+where
+
+    H1_j = prop_teacher_eth_cauc
+    H2_j = prop_degree_master+
+    W_j  = avg_experience
+    pF_j = school-level proportion of free-lunch students
+
+Sampling these variables jointly preserves the empirical STAR dependence structure.
+
+Define
+
+    h_j = (1, H1_j, H2_j)'.
+
+These school-level draws are generated ONCE per replication and held fixed across all scenarios within that replication.
+
+
+4. STANDARDIZED UNOBSERVED SCHOOL HETEROGENEITY
+-----------------------------------------------
+
+For each school j = 1,...,80, draw once
+
+    epsilon_j ~ MVN(0, I_2).
+
+Hold epsilon_j fixed across all scenarios within the replication.
+
+For a scenario indexed by c, define
+
+    v_j(c) = sqrt(c) * Sigma_0^(1/2) * epsilon_j.
+
+Then
+
+    v_j(c) ~ MVN(0, c * Sigma_0).
+
+In particular:
+
+    c = 0:
+        v_j(0) = 0
+
+    c = 0.5:
+        v_j(0.5) = sqrt(0.5) * Sigma_0^(1/2) * epsilon_j
+
+    c = 1:
+        v_j(1) = Sigma_0^(1/2) * epsilon_j
+
+    c = 2:
+        v_j(2) = sqrt(2) * Sigma_0^(1/2) * epsilon_j
+
+Do NOT independently redraw v_j for each value of c.
+
+
+5. SCHOOL-SPECIFIC TREATMENT-EFFECT PARAMETERS
+----------------------------------------------
+
+Use the STAR-calibrated population matrix
+
+    Gamma_0 =
+      [  0.152    0.110    0.103 ]
+      [  0.059   -0.066   -0.067 ]
+
+For each school j and heterogeneity level c,
+
+    theta_j(c) = Gamma_0 * h_j + v_j(c).
+
+
+6. STUDENT-LEVEL MASTER POPULATION
+----------------------------------
+
+For every school j = 1,...,80 and every student i = 1,...,450, generate once:
+
+    free_lunch_ij
+    female_ij
+    age_ij
+    T_ij
+    u_ij
+
+These variables are held fixed across all scenarios within the replication.
+
+FREE LUNCH
+
+    free_lunch_ij | pF_j ~ Bernoulli(pF_j)
+
+and
+
+    z_ij = (1, free_lunch_ij)'.
+
+FEMALE
+
+    female_ij ~ Bernoulli(0.487).
+
+AGE
+
+Draw standardized age from the empirical STAR age distribution used in the baseline DGP.
+
+TREATMENT
+
+    T_ij ~ Bernoulli(0.3).
+
+OUTCOME DISTURBANCE
+
+    u_ij ~ Normal(0,1).
+
+The same u_ij realization should be used across all scenarios within the replication.
+
+Across Monte Carlo replications, u_ij is regenerated.
+
+
+7. NESTED SCHOOL SAMPLES FOR THE J EXPERIMENT
+---------------------------------------------
+
+Use nested subsets of the same 80 schools:
+
+    J = 10: schools 1,...,10
+    J = 20: schools 1,...,20
+    J = 40: schools 1,...,40
+    J = 80: schools 1,...,80
+
+Hold
+
+    N_j = 200
+    c = 1
+
+for this experiment.
+
+Thus, larger-J designs contain all schools used in smaller-J designs.
+
+
+8. NESTED STUDENT SAMPLES FOR THE N_j EXPERIMENT
+------------------------------------------------
+
+The master population contains 450 students per school.
+
+Use nested student samples:
+
+    N_j = 50:  students 1,...,50
+    N_j = 200: students 1,...,200
+    N_j = 450: students 1,...,450
+
+Hold
+
+    J = 40
+    c = 1
+
+for this experiment.
+
+Because N_max = 450, do not use N_j = 1000 unless the master population is enlarged.
+
+
+9. RESIDUAL-HETEROGENEITY EXPERIMENT
+------------------------------------
+
+Use
+
+    c in {0, 0.5, 1, 2}
+
+with
+
+    Sigma(c) = c * Sigma_0.
+
+Hold
+
+    J = 40
+    N_j = 200
+
+fixed.
+
+Keep the same H, W, pF, X, Z, T, u, and epsilon draws.
+
+Only change
+
+    v_j(c) = sqrt(c) * Sigma_0^(1/2) * epsilon_j.
+
+
+10. NINE UNIQUE SCENARIOS
+-------------------------
+
+A. Number of schools:
+
+    (J, N_j, c)
+
+    (10, 200, 1)
+    (20, 200, 1)
+    (40, 200, 1)
+    (80, 200, 1)
+
+B. Within-school sample size:
+
+    (40, 50, 1)
+    (40, 200, 1)
+    (40, 450, 1)
+
+C. Residual heterogeneity:
+
+    (40, 200, 0)
+    (40, 200, 0.5)
+    (40, 200, 1)
+    (40, 200, 2)
+
+Because the baseline (40, 200, 1) is common to all three groups, there are 9 unique scenarios.
+
+
+11. TRUE TREATMENT EFFECTS
+--------------------------
+
+For school j under scenario c:
+
+    theta_j(c) = Gamma_0 h_j + v_j(c).
+
+Individual treatment effect:
+
+    tau_ij(c) = z_ij' theta_j(c).
+
+Population school ATE conditional on pF_j:
+
+    zbar_j,pop = (1, pF_j)'
+
+    tau_j,pop^true(c) = zbar_j,pop' theta_j(c).
+
+This population ATE should be the primary oracle target for evaluating prediction.
+
+Optionally, also compute the finite-sample school ATE:
+
+    zbar_j,N = (1, mean_i free_lunch_ij)'
+
+    tau_j,N^true(c) = zbar_j,N' theta_j(c).
+
+
+12. OUTCOME GENERATION
+----------------------
+
+Using the baseline nuisance parameters
+
+    beta_0  = (0,0,0)'
+    delta_0 = 0
+    sigma_u = 1,
+
+generate
+
+    y_ij(c)
+      = T_ij * tau_ij(c)
+        + x_ij' beta_0
+        + W_j * delta_0
+        + u_ij.
+
+Because X, W, T, and u are held fixed across scenarios within a replication, differences across c scenarios arise only through the treatment-effect component.
+
+For J and N_j scenarios, construct outcomes by selecting the appropriate nested subset of the master dataset.
+
+
+13. MONTE CARLO LOOP
+--------------------
+
+Recommended structure:
+
+    for r in 1:R:
+
+        generate a NEW master population:
+            80 schools
+            450 students per school
+
+        generate school-level variables
+        generate epsilon_j
+        generate student-level variables
+        generate T_ij
+        generate u_ij
+
+        construct the 9 scenario datasets from the same master population
+
+        estimate the model under each scenario
+
+        perform LOSO/predictive validation
+
+        store performance measures
+
+Summary:
+
+    ACROSS REPLICATIONS:
+        regenerate everything.
+
+    ACROSS SCENARIOS WITHIN A REPLICATION:
+        hold H, Z, X, W, T, u, and epsilon fixed.
+
+    J EXPERIMENT:
+        use nested subsets of schools.
+
+    N_j EXPERIMENT:
+        use nested subsets of students.
+
+    c EXPERIMENT:
+        use v_j(c) = sqrt(c) * Sigma_0^(1/2) * epsilon_j.
+
+
+14. MAIN INTERPRETATION
+-----------------------
+
+Each Monte Carlo replication is a new STAR-like super-population.
+
+The nine scenarios are counterfactual changes applied to that same realized population.
+
+This design makes comparisons cleaner because differences in performance are not driven by unrelated draws of schools, students, treatment assignments, outcome noise, or unobserved heterogeneity.
+
+The central principle is:
+
+    ONE new 80-school x 450-student super-population per replication,
+    MANY counterfactual scenarios constructed from that same population.

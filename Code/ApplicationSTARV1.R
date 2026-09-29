@@ -1,6 +1,6 @@
 rm(list = ls())
 set.seed(10101)
-
+library(dplyr)
 library(AER)
 data("STAR")
 STARorigin <- STAR
@@ -169,6 +169,8 @@ Z <- X[,1:4]
 
 H <- W[,c(1:3, 15:17)]
 
+W <- W[,-1]
+
 y  <- yV2  %>% filter(STAR.id %in% ids_common) %>% arrange(STAR.id) %>% pull(STAR.readk)
 Tr <- TrV2 %>% filter(STAR.id %in% ids_common) %>% arrange(STAR.id) %>% pull(STAR.smallk)
 id <- W_fullV2 %>% filter(id %in% ids_common) %>% arrange(id) %>% pull(schoolidk)
@@ -183,19 +185,19 @@ Data <- data.frame(
   w1 = W[, 1], w2 = W[, 2], w3 = W[, 3], w4 = W[, 4], w5 = W[, 5],
   w6 = W[, 6], w7 = W[, 7], w8 = W[, 8], w9 = W[, 9], w10 = W[, 10],
   w11 = W[, 11], w12 = W[, 12], w13 = W[, 13], w14 = W[, 14], w15 = W[, 15],
-  w16 = W[, 16], w17 = W[, 17],
+  w16 = W[, 16],
   z1 = X[,1], z2 = X[,2], z3 = X[,3], z4 = X[,4],
   h1 = W[,1], h2 = W[,2], h3 = W[,3],
-  h4 = W[,15], h5 = W[,16], h6 = W[,17]
+  h4 = W[,15], h5 = W[,16]
 )
 Kx <- ncol(X) 
 Kw <- ncol(W)
 Kz <- ncol(Z)
 Kh <- ncol(H)
 
-RegOLS <- lm(y ~ Tr + x2 + x3 + x4 + x5 + x6 + x7 + x8 +
+RegOLS <- lm(y ~ Tr + x2 + x3 + x4 + x5 + x6 + x7 + x8 + w1 +
                w2 + w3 + w4 + w5 + w6 + w7 + w8 + w9 + w10 +
-               w11 + w12 + w13 + w14 + w15 + w16 + w17, data = Data)
+               w11 + w12 + w13 + w14 + w15 + w16, data = Data)
 summary(RegOLS)
 
 stan_data <- list(
@@ -360,24 +362,70 @@ rstan::stan_trace(fit, pars = "Gamma")
 rstan::stan_trace(fit, pars = "Sigma_delta")
 rstan::stan_trace(fit, pars = "sigma")
 
-post_delta <- rstan::extract(fit, pars = "delta")$delta
-dim(post_delta)
+##### Trace plots #####
+library(ggplot2)
+library(dplyr)
+library(tidyr)
 
-i <- 670
-j_i <- stan_data$id[i]
-j_i 
-delta_j_draws <- post_delta[, j_i, ]  # matrix: iterations x Kz
-dim(delta_j_draws)
-summary(coda::mcmc(delta_j_draws))
-plot(coda::mcmc(delta_j_draws))
+mcmc_to_df <- function(x, name = "param") {
+  if (is.null(dim(x))) {
+    df <- data.frame(iter = seq_along(x), value = x, param = name)
+  } else {
+    x <- as.matrix(x)
+    df <- as.data.frame(x)
+    df$iter <- seq_len(nrow(df))
+    df <- pivot_longer(
+      df,
+      cols = -iter,
+      names_to = "param",
+      values_to = "value"
+    )
+  }
+  df
+}
 
-z_n <- stan_data$Z[i, ]             # vector of length Kz
-z_n
-theta_n_draws <- post_delta[, j_i, ] %*% z_n  # iterations x 1
-plot(density(theta_n_draws),
-     main = paste0("Posterior of theta for obs ", n),
-     xlab = "theta_n")
-summary(coda::mcmc(theta_n_draws))
+traceplot_gg <- function(df, title = NULL) {
+  ggplot(df, aes(x = iter, y = value)) +
+    geom_line(color = "steelblue", linewidth = 0.3) +
+    facet_wrap(~ param, scales = "free_y") +
+    labs(
+      title = title,
+      x = "Iteration",
+      y = "Value"
+    ) +
+    theme_bw(base_size = 11) +
+    theme(
+      strip.background = element_rect(fill = "grey95"),
+      panel.grid.minor = element_blank(),
+      plot.title = element_text(face = "bold")
+    )
+}
+
+df_beta <- mcmc_to_df(post[["beta"]])
+p_beta <- traceplot_gg(df_beta, "Trace plots: beta")
+ggsave("appendix_trace_beta.pdf", p_beta, width = 8, height = 10)
+
+df_gamma <- mcmc_to_df(post[["gamma"]])
+p_gamma <- traceplot_gg(df_gamma, "Trace plots: gamma")
+ggsave("appendix_trace_gamma.pdf", p_gamma, width = 8, height = 10)
+
+for (k in 1:4) {
+  df_Gamma <- mcmc_to_df(post[["Gamma"]][,,k], name = paste0("Gamma_", k))
+  p <- traceplot_gg(df_Gamma, paste("Trace plots: Gamma[,,", k, "]"))
+  ggsave(paste0("appendix_trace_Gamma_", k, ".pdf"),
+         p, width = 8, height = 10)
+}
+
+for (k in 1:4) {
+  df_Sd <- mcmc_to_df(post[["Sigma_delta"]][,,k], name = paste0("Sigma_delta_", k))
+  p <- traceplot_gg(df_Sd, paste("Trace plots: Sigma[,,", k, "]"))
+  ggsave(paste0("appendix_trace_Sigma_delta_", k, ".pdf"),
+         p, width = 8, height = 10)
+}
+
+df_sigma <- mcmc_to_df(post[["sigma"]], "sigma")
+p_sigma <- traceplot_gg(df_sigma, "Trace plot: sigma")
+ggsave("appendix_trace_sigma.pdf", p_sigma, width = 6, height = 4)
 
 ##### Nice plots of tau (treatment effects) #####
 library(dplyr)
@@ -538,5 +586,141 @@ ggplot(df_tau, aes(x = tau_mean)) +
 
 c(N = length(tau_mean), n_excluding0 = sum(exclude0, na.rm = TRUE), pct_excluding0 = pct_exclude0)
 
+##### Prediction treatment effects #####
+# Predictive function
+Pred_tau <- function(x10, w10, Gammas, Sigmas){
+  # Gammas <- post[["Gamma"]][1,,]
+  # Sigmas <- post[["Sigma_delta"]][1,,]
+  zij0 <- c(1, x10)
+  hj0 <- c(1, w10)
+  mean_theta <- t(Gammas)%*%hj0
+  thetaj0 <- MASS::mvrnorm(1, mu = mean_theta, Sigmas)
+  tauj0 <-  zij0%*%thetaj0
+  return(tauj0)
+}
 
+S <- 1000
 
+x10 <- c(0, 1, 0) # (Female, caucasian, Afro. Amer.)
+w10 <- c(7.95, 1, 0, 0, 0) # (Av. Exp, Prop. Cau., Rural, Urban, SubUrban)
+tauij1 <- sapply(1:S, function(s) {Pred_tau(x10, w10, Gammas = post[["Gamma"]][s,,], 
+                                               Sigmas = post[["Sigma_delta"]][s,,])})
+
+x10 <- c(1, 1, 0) # (Female, caucasian, Afro. Amer.)
+w10 <- c(7.95, 1, 0, 0, 0) # (Av. Exp, Prop. Cau., Rural, Urban, SubUrban)
+tauij2 <- sapply(1:S, function(s) {Pred_tau(x10, w10, Gammas = post[["Gamma"]][s,,], 
+                                            Sigmas = post[["Sigma_delta"]][s,,])})
+
+x10 <- c(0, 1, 0) # (Female, caucasian, Afro. Amer.)
+w10 <- c(4, 1, 0, 0, 0) # (Av. Exp, Prop. Cau., Rural, Urban, SubUrban)
+tauij3 <- sapply(1:S, function(s) {Pred_tau(x10, w10, Gammas = post[["Gamma"]][s,,], 
+                                            Sigmas = post[["Sigma_delta"]][s,,])})
+
+x10 <- c(1, 1, 0) # (Female, caucasian, Afro. Amer.)
+w10 <- c(4, 1, 0, 0, 0) # (Av. Exp, Prop. Cau., Rural, Urban, SubUrban)
+tauij4 <- sapply(1:S, function(s) {Pred_tau(x10, w10, Gammas = post[["Gamma"]][s,,], 
+                                            Sigmas = post[["Sigma_delta"]][s,,])})
+
+### Conditional distribution of the treatment effect of a student in the sample
+i <- 2623
+j <- stan_data$id[i]
+z_i <- stan_data$Z[i, ]
+post_delta <- rstan::extract(fit, pars="delta")$delta  # iter x J x Kz
+tau_id2623 <- as.vector(post_delta[, j, ] %*% z_i)
+
+### Histograms Predictive treatment effect ###
+
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(tibble)
+
+# Put all posterior draws in one long data frame
+df_tau <- tibble(
+  tau = c(tauij1, tauij2, tauij3, tauij4),
+  scenario = factor(rep(
+    c("Male, Exp = 8",
+      "Female,   Exp = 8",
+      "Male, Exp = 4",
+      "Female,   Exp = 4"),
+    each = S
+  ), levels = c("Male, Exp = 8","Female,   Exp = 8","Male, Exp = 4","Female,   Exp = 4"))
+)
+
+# Posterior mean + central (equal-tailed) 95% credible interval
+sum_tau <- df_tau %>%
+  group_by(scenario) %>%
+  summarise(
+    mean = mean(tau),
+    lo   = quantile(tau, 0.025),
+    hi   = quantile(tau, 0.975),
+    .groups = "drop"
+  )
+sum_tau_long <- sum_tau %>%
+  pivot_longer(cols = c(mean, lo, hi),
+               names_to = "type", values_to = "x") %>%
+  mutate(type = factor(type,
+                       levels = c("lo","mean","hi"),
+                       labels = c("95% CI","Mean","95% CI")))
+
+# --- conditional draws for student 2623, only in the top-left facet ---
+scenario_target <- levels(df_tau$scenario)[1]  # top-left facet: "Male, Exp = 8"
+
+df_2623 <- tibble(
+  tau = tau_id2623,
+  scenario = factor(scenario_target, levels = levels(df_tau$scenario))
+)
+
+# conditional mean line (dotted) with legend entry
+cond_mean_df <- tibble(
+  scenario = factor(scenario_target, levels = levels(df_tau$scenario)),
+  type = factor("Conditional mean (student 2623)",
+                levels = c("95% CI", "Mean", "Conditional mean (student 2623)")),
+  x = mean(tau_id2623)
+)
+
+# --- make the predictive line types also include the new legend level ---
+sum_tau_long2 <- sum_tau_long %>%
+  mutate(type = factor(as.character(type),
+                       levels = c("95% CI", "Mean", "Conditional mean (student 2623)")))
+
+ggplot(df_tau, aes(x = tau)) +
+  # Predictive histogram (as before)
+  geom_histogram(aes(y = after_stat(count)),
+                 bins = 35, fill = "grey80", color = "grey80") +
+  
+  # Overlay: conditional histogram for student 2623 (ONLY in top-left facet)
+  geom_histogram(data = df_2623,
+                 aes(y = after_stat(count)),
+                 bins = 35, fill = "grey50", color = "grey50",
+                 alpha = 0.35) +
+  
+  # Predictive CI + mean (legend controlled by linetype)
+  geom_vline(data = sum_tau_long2,
+             aes(xintercept = x, linetype = type),
+             linewidth = 1.0, color = "black") +
+  
+  # Conditional mean (dotted) only in top-left facet + legend entry
+  geom_vline(data = cond_mean_df,
+             aes(xintercept = x, linetype = type),
+             linewidth = 1.1, color = "black") +
+  
+  scale_linetype_manual(
+    values = c("95% CI" = "dashed",
+               "Mean" = "solid",
+               "Conditional mean (student 2623)" = "dotted")
+  ) +
+  
+  facet_wrap(~ scenario, ncol = 2, scales = "free_y") +
+  labs(x = expression(tau[0]),
+       y = "Count",
+       linetype = "") +
+  
+  theme_classic(base_size = 13) +
+  theme(
+    strip.background = element_blank(),
+    strip.text = element_text(face = "bold"),
+    legend.position = "bottom",
+    legend.justification = "center",
+    legend.box = "horizontal"
+  )

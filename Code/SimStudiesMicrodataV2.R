@@ -2,9 +2,10 @@ rm(list = ls())
 set.seed(10101)
 
 # --- Basic structure ---
-J  <- 40 # 40, 30, 20, 10 number of studies
-l <- 8 # 8, 6, 4, 2
-N  <- c(rep(500, l), rep(256, l), rep(145, l), rep(760, l), rep(678, l)) # sample sizes per study
+J  <- 40 # 80, 40, 20, 10 number of studies
+l <- J/5
+# N  <- c(rep(500, l), rep(256, l), rep(145, l), rep(760, l), rep(678, l)) # sample sizes per study
+N  <- c(rep(35, l), rep(60, l), rep(85, l), rep(110, l), rep(135, l)) # sample sizes per study
 NJ <- sum(N)
 
 study_id <- unlist(lapply(1:J, function(j) rep(j, N[j])))
@@ -26,6 +27,9 @@ W_study <- matrix(NA, nrow = J, ncol = Kw)
 for (j in 1:J) {
   W_study[j, ] <- c(1, rnorm(Kw - 1, mean = j, sd = 1))
 }
+
+W_study[, -1] <- scale(W_study[, -1])
+
 
 # Expand W to individual level (so we can store it in Data)
 W_full <- W_study[study_id, ]              # NJ x Kw
@@ -64,15 +68,24 @@ for (j in 1:J) {
   mean_delta_j <- W_study[j, ] %*% Psi_true   # 1 x Kz
   delta_j      <- MASS::mvrnorm(1, mean_delta_j, Sigma_delta_true)
   
-  delta_true[j, ] <- delta_j
+  delta_true[j, ] <- delta_j # delta_j is theta_j in our notation
   
-  theta[ind] <- Z[ind, ] %*% delta_j          # theta_ij
+  theta[ind] <- Z[ind, ] %*% delta_j          # theta_ij is tau_ij in our nation
   start <- start + N_j
 }
 
 # Outcome: includes X*beta and W*gamma
 e  <- rnorm(NJ, 0, sigma_true)
 y  <- Tr * theta + X %*% beta_true + W_full %*% gamma_true + e
+
+##### TRUE ATE #########
+ATE_true <- sapply(1:J, function(j) {
+  mean(theta[study_id == j])
+})
+
+hist(ATE_true)
+mean(ATE_true)
+sum(ATE_true > 0)
 
 # Put everything in a data.frame including w's
 Data <- data.frame(

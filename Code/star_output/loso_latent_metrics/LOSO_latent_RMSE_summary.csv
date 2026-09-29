@@ -1,0 +1,3 @@
+"metric","value","schools","interpretation"
+"RMSE between LOSO and full posterior means",0.432562788000528,79,"Point-prediction disagreement after observing each school"
+"Posterior expected RMSE for latent ATE",0.466671901801557,79,"Includes uncertainty remaining in the full posterior latent ATE"

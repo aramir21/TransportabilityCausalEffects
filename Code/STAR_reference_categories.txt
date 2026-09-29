@@ -1,0 +1,49 @@
+PROJECT STAR: REGRESSOR REFERENCE CATEGORIES
+
+Individual-level outcome regressors (X)
+-----------------------------------------
+- Sex: male is the reference category.
+- Ethnicity: ethnicities other than Caucasian and African American are the
+  reference category.
+- Birth quarter: Q4 is the reference category.
+- Lunch status: non-free lunch is the reference category.
+- Age is standardized; age = 0 denotes the estimation-sample mean age.
+
+Treatment indicator (Tr)
+------------------------
+- Tr = 1: small class.
+- Tr = 0: all other observed class types (regular and regular with aide).
+Thus, the treatment contrast is small class versus the combined non-small
+class group, not small class versus regular class alone.
+
+Individual-level treatment-effect moderators (Z)
+-------------------------------------------------
+Z contains an intercept and the free-lunch indicator. The school-specific
+intercept is the treatment effect for a non-free-lunch student. The coefficient
+on free lunch is the difference in treatment effects between free- and
+non-free-lunch students.
+
+School-level outcome regressors (W)
+-----------------------------------
+The omitted compositional categories are:
+- Teacher ethnicity: non-Caucasian.
+- Career-ladder status: apprentice.
+- Teacher degree: bachelor's degree.
+- School location: inner city.
+- Student lunch composition: non-free lunch.
+
+The included W variables are standardized. A value of zero therefore denotes
+the estimation-sample mean, while the omitted categories define the relevant
+compositional comparisons.
+
+School-level treatment-effect moderators (H)
+--------------------------------------------
+H contains an intercept, the Caucasian-teacher proportion, and the proportion
+of teachers with a master's-plus degree. The two proportions are standardized,
+so the H intercept represents a school at the estimation-sample mean of both
+moderators. There is no literal categorical reference school for H.
+
+Note
+----
+Teacher-characteristic proportions are student weighted because AER::STAR
+does not provide a teacher identifier.

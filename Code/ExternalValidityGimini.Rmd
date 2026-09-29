@@ -1,0 +1,175 @@
+---
+title: Nonparametric Identification and Transportability of Causal Effects under Latent
+  Confounding and Effect Modification
+author: "Researcher"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    df_print: paged
+---
+
+# 1. Introduction
+
+## 1.1 Relevance of the Problem
+A central objective in the empirical economics of education is the evaluation of interventions—such as class-size reductions or targeted pedagogical programs—and the subsequent transportation of these treatment effects to target populations. While randomized controlled trials (RCTs) or quasi-experimental designs (e.g., instrumental variables, regression discontinuity) secure internal validity within a source population, mapping these estimates to a distinct target population remains fundamentally challenging. 
+
+This challenge is exacerbated when the selection mechanism into the source population is driven by unobserved factors (e.g., latent student ability, unmeasured parental investment) that simultaneously confound the treatment-outcome relationship and act as effect modifiers. Under such conditions, classical transportability estimators based on inverse probability of sampling weighting (IPSW) or outcome regression (g-computation) are rendered entirely misspecified, as they rely on the strict assumption of exchangeability given *observed* covariates. 
+
+## 1.2 Conceptual Setting
+Let $A \in \mathcal{A}$ denote a discrete treatment assignment, $Y \in \mathcal{Y}$ the observed scalar outcome, and $S \in \{0, 1\}$ an indicator of population membership, where $S=1$ denotes the experimental source population and $S=0$ the target population. Under the Neyman-Rubin potential outcomes framework, let $Y(a)$ denote the counterfactual outcome under treatment level $A=a$.
+
+We posit the existence of a potentially unobserved, multidimensional random vector $U \in \mathcal{U}$ that captures latent traits. We represent the structural dependencies via a Directed Acyclic Graph (DAG) where $U \rightarrow A$, $U \rightarrow Y$, $U \rightarrow S$, and importantly, $U$ modifies the magnitude of the causal effect of $A$ on $Y$. 
+
+The foundational challenge is to identify the Population Average Treatment Effect in the target population (PATE$_{target}$), defined as:
+$$\tau_{0} = \mathbb{E}[Y(1) - Y(0) \mid S=0]$$
+
+---
+
+# 2. Internal Validity Proof
+
+We first demonstrate that internal validity within the source population ($S=1$) can be secured despite unobserved confounding, provided we have access to a specific proxy structure. We invoke the Proximal Causal Inference framework. Let $Z$ and $W$ be two observed proxies for the unmeasured confounder $U$. 
+
+**Assumption 2.1 (Internal Proxy Structure):** Within $S=1$, the following conditional independencies hold:
+1. $Y(a) \perp \!\!\! \perp A \mid U, S=1$ (Latent Exchangeability)
+2. $W \perp \!\!\! \perp (Z, A) \mid U, S=1$ (Outcome Proxy Condition)
+3. $Z \perp \!\!\! \perp Y \mid (A, U), S=1$ (Treatment Proxy Condition)
+
+To secure internal validity, we require the existence of an outcome confounding bridge function $h(w, a)$ that satisfies the following Fredholm integral equation of the first kind:
+$$\mathbb{E}[Y \mid A=a, U=u, S=1] = \mathbb{E}[h(W, a) \mid A=a, U=u, S=1]$$
+
+Assuming such a function exists (which requires a completeness condition on the distribution of $W$ given $U$), integrating over the latent distribution yields the observable integral equation:
+$$\mathbb{E}[Y \mid A=a, Z=z, S=1] = \mathbb{E}[h(W, a) \mid A=a, Z=z, S=1]$$
+
+Because $Y, A, Z,$ and $W$ are entirely observed in $S=1$, $h(w, a)$ is nonparametrically identified. Consequently, the internally valid potential outcome mean is:
+$$\mathbb{E}[Y(a) \mid S=1] = \mathbb{E}[h(W, a) \mid S=1]$$
+
+---
+
+# 3. External Validity Proof
+
+We now establish the mathematical failure of standard transportability when attempting to project the internally valid effect to $S=0$.
+
+Under classical transportability theory, identifying the target effect relies on the assumption $Y(a) \perp \!\!\! \perp S \mid X$, where $X$ is a set of observed covariates. If only $U$ satisfies this (i.e., $Y(a) \perp \!\!\! \perp S \mid U$), the target estimand evaluates to:
+$$\mathbb{E}[Y(a) \mid S=0] = \int_{\mathcal{U}} \mathbb{E}[Y \mid A=a, U=u, S=1] dF(u \mid S=0)$$
+
+Because $U$ is unobserved, $dF(u \mid S=0)$ is empirically inaccessible. If a researcher naively attempts to substitute the bridge function $h(W, a)$ learned in $S=1$, they evaluate:
+$$\mathbb{E}[h(W, a) \mid S=0] = \int_{\mathcal{W}} h(w, a) dF(w \mid S=0)$$
+
+However, by the Law of Total Probability:
+$$dF(w \mid S=0) = \int_{\mathcal{U}} dF(w \mid U=u, S=0) dF(u \mid S=0)$$
+
+Unless the conditional distribution of the proxy given the latent trait is strictly invariant across populations—that is, $dF(w \mid U=u, S=0) = dF(w \mid U=u, S=1)$—the integration over $W$ in the target sample will fail to correctly reweight the latent distribution $dF(u \mid S=0)$. Without explicit structural assumptions linking the proxy generating mechanism across $S$, external validity fundamentally fails.
+
+---
+
+# 4. Method Proposal: Proximal Transportability
+
+To recover $\tau_0$, we propose a set of structural assumptions that exploit the proximal structure across sites.
+
+**Assumption 4.1 (Latent Ignorability of Selection):**
+$$Y(a) \perp \!\!\! \perp S \mid U \quad \forall a \in \mathcal{A}$$
+*Remark: The structural production function of the outcome is invariant across populations, conditional on latent traits.*
+
+**Assumption 4.2 (Proxy Invariance):**
+$$W \perp \!\!\! \perp S \mid (U, A) \quad \text{and} \quad Z \perp \!\!\! \perp S \mid (U, A)$$
+*Remark: The measurement mechanism mapping the latent trait $U$ to the observed proxies $(W, Z)$ is stable across the source and target populations.*
+
+**Assumption 4.3 (Target Observability):**
+The variables $(A, W)$ are observed in the target population ($S=0$).
+
+### Mathematical Deduction
+
+By consistency and Assumption 4.1:
+$$\mathbb{E}[Y(a) \mid S=0] = \int_{\mathcal{U}} \mathbb{E}[Y(a) \mid U=u, S=1] dF(u \mid S=0)$$
+
+By internal latent exchangeability in $S=1$:
+$$\mathbb{E}[Y(a) \mid S=0] = \int_{\mathcal{U}} \mathbb{E}[Y \mid A=a, U=u, S=1] dF(u \mid S=0)$$
+
+Substitute the definition of the outcome bridge function $h(w, a)$ identified in $S=1$:
+$$\mathbb{E}[Y(a) \mid S=0] = \int_{\mathcal{U}} \left\{ \int_{\mathcal{W}} h(w, a) dF(w \mid A=a, U=u, S=1) \right\} dF(u \mid S=0)$$
+
+Invoke the Proxy Invariance condition (Assumption 4.2), allowing us to replace the source population proxy density with the target population proxy density:
+$$dF(w \mid A=a, U=u, S=1) = dF(w \mid A=a, U=u, S=0)$$
+
+Substituting this back into the integral:
+$$\mathbb{E}[Y(a) \mid S=0] = \int_{\mathcal{U}} \int_{\mathcal{W}} h(w, a) dF(w \mid A=a, U=u, S=0) dF(u \mid S=0)$$
+
+By Fubini's Theorem and the definition of conditional probability, we collapse the integral over the latent space $\mathcal{U}$:
+$$\mathbb{E}[Y(a) \mid S=0] = \int_{\mathcal{W}} h(w, a) dF(w \mid A=a, S=0)$$
+$$\mathbb{E}[Y(a) \mid S=0] = \mathbb{E}[h(W, a) \mid A=a, S=0]$$
+
+**Conclusion:** The counterfactual mean in the target population is exactly identified by evaluating the conditional expectation of the source-derived bridge function $h(W, a)$ over the empirical distribution of $W$ given $A=a$ in the target population.
+
+---
+
+# 5. Simulation
+
+We demonstrate the finite-sample properties of the proposed estimator in `R`. The DGP features a continuous latent variable $U$ that confounds $A \to Y$, modifies the treatment effect ($A \times U$), and dictates the sampling mechanism $S$, inducing severe distributional shifts.
+
+```{r simulation, warning=FALSE, message=FALSE}
+library(AER)
+
+set.seed(42)
+
+# 1. Define Sample Sizes
+N <- 10000
+
+# 2. Simulate Latent Confounder/Modifier
+# U has a different distribution depending on S to simulate selection bias
+S <- rbinom(N, 1, 0.5)
+U <- rnorm(N, mean = 0 + 1.5 * S, sd = 1) 
+
+# 3. Simulate Proxies (Invariant across S given U)
+W <- 0.8 * U + rnorm(N, 0, 0.5) # Outcome Proxy
+Z <- 0.8 * U + rnorm(N, 0, 0.5) # Treatment Proxy
+
+# 4. Simulate Treatment Assignment
+# Confounded by U in both populations
+prob_A <- plogis(-1 + 1.2 * U)
+A <- rbinom(N, 1, prob_A)
+
+# 5. Simulate Potential and Observed Outcomes
+# Structural equation: Y(a) = 2 + 3*a + 1.5*U + 2*(a*U) + e
+# Note: U is an effect modifier (interaction term 2*(a*U))
+Y0 <- 2 + 1.5 * U + rnorm(N, 0, 1)
+Y1 <- 2 + 3 + 1.5 * U + 2 * U + rnorm(N, 0, 1)
+Y  <- A * Y1 + (1 - A) * Y0
+
+data <- data.frame(S, U, W, Z, A, Y, Y1, Y0)
+
+# Separate into Source (S=1) and Target (S=0)
+data_source <- data[data$S == 1, ]
+data_target <- data[data$S == 0, ]
+
+# --- ESTIMATION ---
+
+# True Target PATE
+true_PATE_target <- mean(data_target$Y1 - data_target$Y0)
+
+# Naive Estimator (Difference in means in S=1, blindly transported)
+naive_PATE <- mean(data_source$Y[data_source$A == 1]) - 
+              mean(data_source$Y[data_source$A == 0])
+
+# Proposed Method: Proximal Transportability
+# Step 1: Estimate h(W, a) in Source using 2SLS (Instrumenting W with Z)
+model_a0 <- ivreg(Y ~ W | Z, data = data_source[data_source$A == 0, ])
+model_a1 <- ivreg(Y ~ W | Z, data = data_source[data_source$A == 1, ])
+
+# Step 2: Integrate over Target Population distribution of W | A=a
+# Note: By Assumption 4.3, we only need W and A in the target population
+pred_Y0_target <- predict(model_a0, newdata = data_target[data_target$A == 0, ])
+pred_Y1_target <- predict(model_a1, newdata = data_target[data_target$A == 1, ])
+
+# For the PATE, we compute the marginal predicted differences in the target sample
+pred_all_Y0 <- predict(model_a0, newdata = data_target)
+pred_all_Y1 <- predict(model_a1, newdata = data_target)
+proximal_PATE <- mean(pred_all_Y1 - pred_all_Y0)
+
+# --- RESULTS ---
+results <- data.frame(
+  Estimator = c("True Target PATE", "Naive Source Difference", "Proximal Transportable"),
+  Estimate = c(true_PATE_target, naive_PATE, proximal_PATE)
+)
+print(results)
+```
+

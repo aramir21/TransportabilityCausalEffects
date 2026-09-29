@@ -1,0 +1,447 @@
+STAR-CALIBRATED BASELINE SIMULATION DGP
+
+PURPOSE
+
+This document summarizes a baseline population data-generating process
+(DGP) for simulations motivated by the Project STAR application. The
+objective is not to reproduce every feature of STAR exactly, but to
+preserve the main features relevant for predictive external validity:
+
+1.  a mean school ATE close to 0.20 control-group SD units;
+2.  substantial cross-school treatment-effect heterogeneity;
+3.  low predictive external-validity R2 (R2_EV), around 0.05;
+4.  the estimated systematic treatment-effect structure Gamma from STAR;
+    and
+5.  realistic distributions and dependence patterns for the observed
+    STAR covariates.
+
+The main simulation dimensions can subsequently vary J (number of
+schools), N_j (students per school), and the magnitude of residual
+heterogeneity Sigma.
+
+1. MODEL
+
+For student i in school j:
+
+    y_ij = T_ij * tau_ij + x_ij' beta + w_j * delta + u_ij
+
+    u_ij ~ Normal(0, sigma_u^2)
+
+Individual treatment effects:
+
+    tau_ij = z_ij' theta_j
+
+Hierarchical treatment-effect model:
+
+    theta_j = Gamma * h_j + v_j
+
+    v_j ~ Normal(0, Sigma)
+
+School ATE:
+
+    tau_j = zbar_j' theta_j
+          = zbar_j' Gamma h_j + zbar_j' v_j
+
+where
+
+    h_j = (1, H1_j, H2_j)'
+
+    H1_j = prop_teacher_eth_cauc
+    H2_j = prop_degree_master+
+
+    z_ij = (1, free_lunch_ij)'
+
+    zbar_j = (1, pF_j)'
+
+    pF_j = school-level proportion of free-lunch students
+
+Outcome controls:
+
+    x_ij = (1, female_ij, age_ij)'
+
+School-level outcome covariate:
+
+    w_j = avg_experience_j
+
+2. BASELINE POPULATION GAMMA
+
+Use the STAR posterior means as the population value:
+
+             h intercept     H1          H2
+
+z intercept 0.152091 0.110434 0.103012 z free_lunch 0.058677 -0.065810
+-0.067449
+
+Thus,
+
+    Gamma_0 =
+      [ 0.152091   0.110434   0.103012 ]
+      [ 0.058677  -0.065810  -0.067449 ]
+
+The systematic school ATE is
+
+    mu_j = (1, pF_j) Gamma_0 (1, H1_j, H2_j)'.
+
+3. STAR-CALIBRATED SCHOOL-LEVEL COVARIATE POPULATION
+
+Preferred baseline: sample the following vector JOINTLY, with
+replacement, from the empirical distribution of the 79 STAR schools:
+
+    (H1_j, H2_j, W_j, pF_j)
+
+where
+
+    H1_j = prop_teacher_eth_cauc
+    H2_j = prop_degree_master+
+    W_j  = avg_experience
+    pF_j = school proportion free_lunch
+
+This empirical-joint-distribution approach is preferred to independent
+normal draws because it preserves STAR’s non-Gaussian/discrete school
+covariates and their correlations.
+
+School-level empirical moments across the 79 schools:
+
+                         mean        SD        min        max
+
+H1 0.0647 0.9979 -3.1272 0.6310 H2 -0.0653 0.9132 -0.3361 3.8622 W
+-0.0043 1.0061 -2.3741 2.2001 pF 0.4725 0.2714 0.0152 1.0000 observed
+N_j 73.01 23.78 34 136
+
+Important empirical correlations:
+
+    Corr(H1, pF) = -0.4526
+    Corr(H2, pF) = -0.0747
+    Corr(W,  pF) = -0.1966
+
+Therefore, DO NOT simulate pF independently of H in the preferred
+baseline.
+
+4. INDIVIDUAL-LEVEL COVARIATES
+
+FREE LUNCH
+
+Conditional on the simulated school’s pF_j:
+
+    free_lunch_ij | pF_j ~ Bernoulli(pF_j)
+
+The overall STAR student-level proportion is
+
+    P(free_lunch = 1) = 0.4830.
+
+FEMALE
+
+A simple baseline is
+
+    female_ij ~ Bernoulli(0.4870)
+
+independently across students and schools.
+
+AGE
+
+The standardized STAR age variable is discrete. Use its empirical
+population distribution rather than Normal(0,1):
+
+    P(age = -2.787070) = 0.001040
+    P(age = -0.551523) = 0.757282
+    P(age = 1.684024) = 0.235610
+    P(age = 3.919572) = 0.006068
+
+This preserves the observed standardized age distribution closely.
+
+5. TREATMENT ASSIGNMENT
+
+For a simple randomized-trial baseline:
+
+    T_ij ~ Bernoulli(0.3)
+
+independently of the covariates and potential outcomes.
+
+0.3 is the STAR treatment probability for small class size.
+
+6. CALIBRATION OF THE SYSTEMATIC ATE COMPONENT
+
+Using Gamma_0 above and the empirical joint distribution of (H1, H2, pF)
+across the 79 STAR schools gives:
+
+    E[mu_j]                  = 0.189500
+    Var(mu_j) = V_sys       = 0.008501
+    SD(mu_j)                 = 0.092202
+    min(mu_j)                = -0.074192
+    max(mu_j)                = 0.490580
+
+Thus the STAR posterior mean Gamma and the empirical STAR covariate
+population already imply a mean systematic ATE of approximately 0.19,
+very close to the desired baseline mean of 0.20.
+
+RECOMMENDATION: Do NOT modify Gamma_0 merely to force the mean to
+exactly 0.20. Use the STAR posterior mean Gamma as the baseline
+population value. The difference between 0.1895 and 0.20 is negligible
+for the purpose of the simulation and preserving the empirical Gamma
+gives the calibration a cleaner interpretation.
+
+7. TARGET R2_EV AND RESIDUAL HETEROGENEITY
+
+Baseline target:
+
+    R2_EV = 0.05
+
+Definition:
+
+    R2_EV = V_sys / (V_sys + V_res)
+
+where
+
+    V_sys = Var[zbar_j' Gamma_0 h_j]
+
+and
+
+    V_res = E[zbar_j' Sigma_0 zbar_j].
+
+Given
+
+    V_sys = 0.008501
+
+and R2_EV = 0.05, the required residual ATE variance is
+
+    V_res = V_sys * (1 - R2_EV) / R2_EV
+          = 0.161522.
+
+For the simplest baseline, impose
+
+    Sigma_0 = sigma_v^2 * I_2.
+
+Since
+
+    zbar_j = (1, pF_j)',
+
+we have
+
+    E[zbar_j' Sigma_0 zbar_j]
+      = sigma_v^2 * E[1 + pF_j^2].
+
+In the empirical STAR school population,
+
+    E[1 + pF_j^2] = 1.295952.
+
+Therefore choose
+
+    sigma_v^2 = 0.124636
+
+and hence
+
+    Sigma_0 =
+      [ 0.124636   0        ]
+      [ 0          0.124636 ]
+
+with
+
+    sigma_v = 0.353038.
+
+This construction gives R2_EV = 0.05 by design.
+
+8. IMPLIED BASELINE ATE DISPERSION
+
+Under the preceding calibration,
+
+    V_total = V_sys + V_res
+            = 0.170023
+
+and
+
+    SD(tau_j) = sqrt(V_total)
+              = 0.412339.
+
+For comparison, the posterior mean school ATEs in the STAR application
+have:
+
+    mean              = 0.191182
+    SD                = 0.434692
+    minimum           = -0.762141
+    maximum           = 1.376106
+
+Thus the baseline DGP has:
+
+    mean ATE about 0.19-0.20;
+    cross-school ATE SD about 0.41;
+    STAR posterior-mean ATE SD about 0.43;
+    R2_EV = 0.05.
+
+This is a close and deliberately simple calibration to the empirical
+STAR application. The realized minimum and maximum ATE in any Monte
+Carlo sample should NOT be forced to equal the STAR observed range; they
+should emerge randomly from the DGP.
+
+9. OUTCOME-EQUATION NUISANCE PARAMETERS
+
+The uploaded calibration summaries do not provide posterior estimates
+for beta, delta, or sigma_u. Therefore these values should NOT be
+described as STAR posterior estimates.
+
+For a transparent baseline simulation, use:
+
+    beta_0  = (0, 0, 0)'
+    delta_0 = 0
+    sigma_u = 1
+
+so that
+
+    y_ij = T_ij * tau_ij + u_ij,
+    u_ij ~ Normal(0,1),
+
+conditional on the included covariates.
+
+This isolates the treatment-effect hierarchy, which is the main object
+of the simulation. If posterior estimates of beta, delta, and sigma_u
+from the STAR application are available, they can later replace these
+nuisance values.
+
+10. BASELINE SAMPLE SIZE
+
+Suggested baseline:
+
+    J   = 40 schools
+    N_j = 200 students per school
+
+Main comparative designs:
+
+    J in {10, 20, 40, 80}
+
+and, if studying the distinction between within-study information and
+the number of studies,
+
+    N_j in {50, 200, 1000}.
+
+A useful main design changes one dimension at a time around J=40,
+N_j=200.
+
+11. BASELINE DGP: PROGRAMMING ALGORITHM
+
+For each Monte Carlo replication:
+
+A. For j = 1,…,J:
+
+1.  Draw one row, with replacement, from the empirical 79-school
+    distribution of
+
+        (H1, H2, W, pF).
+
+2.  Define
+
+        h_j = (1, H1_j, H2_j)'.
+
+3.  Draw
+
+        v_j ~ MVN(0, Sigma_0).
+
+4.  Set
+
+        theta_j = Gamma_0 h_j + v_j.
+
+B. For i = 1,…,N_j:
+
+5.  Draw
+
+        free_lunch_ij ~ Bernoulli(pF_j)
+        female_ij     ~ Bernoulli(0.4870)
+        age_ij        ~ empirical STAR age distribution
+        T_ij          ~ Bernoulli(0.3).
+
+6.  Define
+
+        z_ij = (1, free_lunch_ij)'
+        x_ij = (1, female_ij, age_ij)'.
+
+7.  Compute
+
+        tau_ij = z_ij' theta_j.
+
+8.  Draw
+
+        u_ij ~ Normal(0,1).
+
+9.  Generate
+
+        y_ij = T_ij*tau_ij + x_ij'beta_0 + W_j*delta_0 + u_ij.
+
+C. Store the TRUE school ATE.
+
+For the realized simulated school population,
+
+    tau_j^true = zbar_j' theta_j,
+
+where
+
+    zbar_j = (1, mean_i(free_lunch_ij))'.
+
+Alternatively, for the population ATE conditional on pF_j, use
+
+    tau_j^pop = (1, pF_j)' theta_j.
+
+Keep these two objects distinct in the code.
+
+12. CORE BASELINE POPULATION VALUES
+
+Use these as the default constants in the simulation code:
+
+    Gamma_0 =
+      [ 0.152091   0.110434   0.103012 ]
+      [ 0.058677  -0.065810  -0.067449 ]
+
+    Sigma_0 =
+      [ 0.124636   0        ]
+      [ 0          0.124636 ]
+
+    R2_EV target = 0.05
+
+    beta_0  = (0, 0, 0)'
+    delta_0 = 0
+    sigma_u = 1
+
+    P(female=1) = 0.486997
+
+    T_ij ~ Bernoulli(0.3)
+
+    J_baseline   = 40
+    N_j_baseline = 200
+
+13. IMPORTANT SIMULATION CHECKS
+
+Before running the full Monte Carlo experiment, simulate a very large
+number of schools and verify numerically that:
+
+    E(tau_j) is approximately 0.19-0.20;
+
+    Var(systematic ATE) is approximately 0.008501;
+
+    E(residual ATE variance) is approximately 0.161522;
+
+    R2_EV is approximately 0.05;
+
+    SD(tau_j) is approximately 0.412.
+
+Also verify that the simulated joint covariate distribution preserves
+the important STAR dependence between H1 and pF.
+
+Do not calibrate the simulation by forcing each finite Monte Carlo
+sample to have exactly these moments. These are POPULATION calibration
+targets; finite samples should display sampling variation.
+
+14. MAIN INTERPRETATION
+
+The baseline DGP is designed so that observed individual- and
+school-level effect modifiers generate a modest systematic component of
+cross-school treatment-effect variation, while most predictive
+uncertainty comes from the unobserved school-specific heterogeneity v_j.
+
+This makes the simulation directly useful for illustrating the paper’s
+main distinction:
+
+-   increasing N_j improves learning about treatment effects in observed
+    schools;
+-   increasing J improves learning about Gamma and Sigma;
+-   residual heterogeneity Sigma_0 creates irreducible predictive
+    uncertainty for the treatment effect in a new school.
+
+The baseline is intentionally STAR-calibrated but parsimonious enough
+that the mechanism remains transparent.

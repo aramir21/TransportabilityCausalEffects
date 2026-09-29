@@ -1,0 +1,612 @@
+---
+title: "External Validity with Latent Confounders and Effect Modifiers"
+author: "Methodological Proposal"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    number_sections: true
+    theme: readable
+    mathjax: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning = FALSE,
+  message = FALSE
+)
+set.seed(123)
+```
+
+# Introduction
+
+This document proposes a method for external validity when the source population and the target population differ because of unobserved determinants of treatment response. The motivating domain is education: an intervention is evaluated in a study population, but the relevant policy estimand concerns a different population of students, teachers, schools, or districts.
+
+Let \(D \in \{0,1\}\) denote treatment, \(S \in \{0,1\}\) denote population membership, where \(S=1\) is the study population and \(S=0\) is the target population. Let \(X\) denote observed baseline covariates. Let \(U\) denote an unobserved variable that may affect treatment response and may also affect population selection.
+
+Potential outcomes are denoted by \(Y(1)\) and \(Y(0)\). The observed outcome is
+
+$$
+Y = D Y(1) + (1-D)Y(0).
+$$
+
+The target estimand is the target-population average treatment effect:
+
+$$
+\tau_0
+=
+\mathbb{E}\left[ Y(1)-Y(0) \mid S=0 \right].
+$$
+
+The source-population estimand is
+
+$$
+\tau_1
+=
+\mathbb{E}\left[ Y(1)-Y(0) \mid S=1 \right].
+$$
+
+The main problem is that even if treatment is randomized in the study population, randomization does not by itself justify transporting the estimated effect to the target population. Internal validity and external validity are logically distinct.
+
+# Conceptual DAGs
+
+The relevant causal structure can be represented conceptually as follows.
+
+```text
+Observed covariates and latent variables:
+
+        X --------------> D
+        |                 |
+        v                 v
+        Y <-------------- D
+        ^
+        |
+        U
+
+Population selection:
+
+        X --------------> S
+        U --------------> S
+
+Effect modification:
+
+        X --------------> Y(1)-Y(0)
+        U --------------> Y(1)-Y(0)
+```
+
+The key issue is that \(U\) is unobserved, affects treatment response, and may have different distributions in the study and target populations.
+
+If \(U\) affects treatment effects and
+
+$$
+U \mid X,S=1
+\not\overset{d}{=}
+U \mid X,S=0,
+$$
+
+then standard external-validity adjustments using only \(X\) generally fail.
+
+# Internal Validity
+
+Internal validity concerns whether the causal effect is identified in the study population.
+
+## Assumption 1: Consistency
+
+For each unit,
+
+$$
+Y = D Y(1) + (1-D)Y(0).
+$$
+
+## Assumption 2: Internal randomization
+
+Within the study population,
+
+$$
+D \perp\!\!\!\perp
+\left\{Y(1),Y(0),U\right\}
+\mid X,S=1.
+$$
+
+## Assumption 3: Treatment positivity
+
+For all \(x\) in the support of \(X\mid S=1\),
+
+$$
+0
+<
+\Pr(D=1 \mid X=x,S=1)
+<
+1.
+$$
+
+## Proposition 1: Identification of the study-population ATE
+
+Under consistency, internal randomization, and treatment positivity,
+
+$$
+\tau_1
+=
+\mathbb{E}
+\left[
+\mathbb{E}(Y \mid D=1,X,S=1)
+-
+\mathbb{E}(Y \mid D=0,X,S=1)
+\mid S=1
+\right].
+$$
+
+## Proof
+
+By consistency,
+
+$$
+\mathbb{E}(Y \mid D=1,X,S=1)
+=
+\mathbb{E}(Y(1) \mid D=1,X,S=1).
+$$
+
+By internal randomization,
+
+$$
+\mathbb{E}(Y(1) \mid D=1,X,S=1)
+=
+\mathbb{E}(Y(1) \mid X,S=1).
+$$
+
+Similarly,
+
+$$
+\mathbb{E}(Y \mid D=0,X,S=1)
+=
+\mathbb{E}(Y(0) \mid X,S=1).
+$$
+
+Therefore,
+
+$$
+\mathbb{E}(Y \mid D=1,X,S=1)
+-
+\mathbb{E}(Y \mid D=0,X,S=1)
+=
+\mathbb{E}(Y(1)-Y(0) \mid X,S=1).
+$$
+
+Taking expectations over \(X\mid S=1\),
+
+$$
+\tau_1
+=
+\mathbb{E}\left[Y(1)-Y(0)\mid S=1\right].
+$$
+
+This proof allows \(U\) to be an unobserved effect modifier. Randomization balances \(U\) across treatment arms inside the study population.
+
+# Why External Validity Fails
+
+The target estimand is
+
+$$
+\tau_0
+=
+\mathbb{E}\left[Y(1)-Y(0)\mid S=0\right].
+$$
+
+Let the conditional average treatment effect be
+
+$$
+\Delta(X,U)
+=
+\mathbb{E}\left[Y(1)-Y(0)\mid X,U\right].
+$$
+
+Then
+
+$$
+\tau_s
+=
+\mathbb{E}\left[\Delta(X,U)\mid S=s\right],
+\qquad s\in\{0,1\}.
+$$
+
+The external-validity problem is the difference
+
+$$
+\tau_0-\tau_1
+=
+\mathbb{E}\left[\Delta(X,U)\mid S=0\right]
+-
+\mathbb{E}\left[\Delta(X,U)\mid S=1\right].
+$$
+
+Standard observed-covariate transport estimates
+
+$$
+\tau_0^{X}
+=
+\mathbb{E}
+\left[
+\mathbb{E}\{Y(1)-Y(0)\mid X,S=1\}
+\mid S=0
+\right].
+$$
+
+This equals \(\tau_0\) only if
+
+$$
+\mathbb{E}\{Y(1)-Y(0)\mid X,S=1\}
+=
+\mathbb{E}\{Y(1)-Y(0)\mid X,S=0\}.
+$$
+
+Equivalently, observed-covariate transport requires that all effect modifiers responsible for cross-population differences are observed in \(X\). If \(U\) is an unobserved effect modifier and its distribution differs across populations, then
+
+$$
+\tau_0^{X}
+\neq
+\tau_0.
+$$
+
+# Method Proposal
+
+The proposed method is latent-effect-modifier transport using proxy variables.
+
+Let \(Z\) be a proxy for the latent variable \(U\). The proxy is observed in both populations. In education, \(Z\) may include pre-treatment achievement, teacher assessments, behavioral records, previous test-score histories, school climate measures, or administrative measures correlated with latent academic readiness or motivation.
+
+The object is to identify
+
+$$
+\tau_0
+=
+\mathbb{E}\left[Y(1)-Y(0)\mid S=0\right]
+$$
+
+even though \(U\) is not observed.
+
+## Assumption 4: Latent transportability
+
+Conditional on \(X\) and \(U\), potential-outcome response functions are invariant across populations:
+
+$$
+\left\{Y(1),Y(0)\right\}
+\perp\!\!\!\perp
+S
+\mid X,U.
+$$
+
+Equivalently, for \(d\in\{0,1\}\),
+
+$$
+\mathbb{E}\left[Y(d)\mid X,U,S=1\right]
+=
+\mathbb{E}\left[Y(d)\mid X,U,S=0\right].
+$$
+
+## Assumption 5: Proxy measurement invariance
+
+The proxy measurement process is invariant across populations:
+
+$$
+f_{Z\mid X,U,S=1}(z\mid x,u)
+=
+f_{Z\mid X,U,S=0}(z\mid x,u).
+$$
+
+## Assumption 6: Bridge functions
+
+For each \(d\in\{0,1\}\), there exists a measurable function \(h_d(X,Z)\) such that
+
+$$
+\mathbb{E}\left[Y(d)\mid X,U,S=1\right]
+=
+\mathbb{E}\left[h_d(X,Z)\mid X,U,S=1\right].
+$$
+
+The functions \(h_1\) and \(h_0\) are called outcome bridge functions.
+
+## Assumption 7: Completeness
+
+For any square-integrable function \(g\),
+
+$$
+\mathbb{E}\left[g(Z)\mid X,U,S=1\right]=0
+\quad \text{almost surely}
+$$
+
+implies
+
+$$
+g(Z)=0
+\quad \text{almost surely}.
+$$
+
+This assumption gives uniqueness of the bridge functions.
+
+## Identification theorem
+
+Under consistency, internal randomization, positivity, latent transportability, proxy measurement invariance, existence of bridge functions, and completeness,
+
+$$
+\tau_0
+=
+\mathbb{E}
+\left[
+h_1(X,Z)-h_0(X,Z)
+\mid S=0
+\right].
+$$
+
+## Proof
+
+Start with the target estimand:
+
+$$
+\tau_0
+=
+\mathbb{E}\left[Y(1)-Y(0)\mid S=0\right].
+$$
+
+By iterated expectations,
+
+$$
+\tau_0
+=
+\mathbb{E}
+\left[
+\mathbb{E}\{Y(1)-Y(0)\mid X,U,S=0\}
+\mid S=0
+\right].
+$$
+
+By latent transportability,
+
+$$
+\mathbb{E}\{Y(d)\mid X,U,S=0\}
+=
+\mathbb{E}\{Y(d)\mid X,U,S=1\}.
+$$
+
+Therefore,
+
+$$
+\tau_0
+=
+\mathbb{E}
+\left[
+\mathbb{E}\{Y(1)-Y(0)\mid X,U,S=1\}
+\mid S=0
+\right].
+$$
+
+By the bridge condition,
+
+$$
+\mathbb{E}\{Y(d)\mid X,U,S=1\}
+=
+\mathbb{E}\{h_d(X,Z)\mid X,U,S=1\}.
+$$
+
+Thus,
+
+$$
+\tau_0
+=
+\mathbb{E}
+\left[
+\mathbb{E}\{h_1(X,Z)-h_0(X,Z)\mid X,U,S=1\}
+\mid S=0
+\right].
+$$
+
+By proxy measurement invariance,
+
+$$
+\mathbb{E}\{h_1(X,Z)-h_0(X,Z)\mid X,U,S=1\}
+=
+\mathbb{E}\{h_1(X,Z)-h_0(X,Z)\mid X,U,S=0\}.
+$$
+
+Therefore,
+
+$$
+\tau_0
+=
+\mathbb{E}
+\left[
+\mathbb{E}\{h_1(X,Z)-h_0(X,Z)\mid X,U,S=0\}
+\mid S=0
+\right].
+$$
+
+Applying iterated expectations,
+
+$$
+\tau_0
+=
+\mathbb{E}
+\left[
+h_1(X,Z)-h_0(X,Z)
+\mid S=0
+\right].
+$$
+
+# Estimation
+
+A simple working estimator is:
+
+1. Estimate \(h_1(X,Z)\) using treated observations in the study population.
+2. Estimate \(h_0(X,Z)\) using untreated observations in the study population.
+3. Evaluate both fitted functions on the target population.
+4. Average the difference.
+
+Formally,
+
+$$
+\widehat{\tau}_0
+=
+\frac{1}{n_0}
+\sum_{i:S_i=0}
+\left[
+\widehat h_1(X_i,Z_i)
+-
+\widehat h_0(X_i,Z_i)
+\right].
+$$
+
+This estimator is intentionally simple. More advanced implementations could use nonparametric sieve estimation, machine learning, cross-fitting, or semiparametric efficient influence functions.
+
+# Simulation
+
+We now simulate a setting in which internal validity holds, external validity based only on \(X\) fails, and proxy-based external validity improves performance.
+
+```{r simulation}
+set.seed(123)
+
+n_source <- 5000
+n_target <- 5000
+
+# Source population: S = 1
+X_source <- rnorm(n_source, mean = 0, sd = 1)
+U_source <- rnorm(n_source, mean = 0, sd = 1)
+
+# Target population: S = 0
+X_target <- rnorm(n_target, mean = 0, sd = 1)
+U_target <- rnorm(n_target, mean = 1, sd = 1)
+
+# Proxy observed in both populations
+Z_source <- U_source + rnorm(n_source, mean = 0, sd = 0.4)
+Z_target <- U_target + rnorm(n_target, mean = 0, sd = 0.4)
+
+# Randomized treatment in source population
+D_source <- rbinom(n_source, size = 1, prob = 0.5)
+
+# Potential outcomes in the source population
+Y0_source <- 1 + 0.5 * X_source + 1.0 * U_source + rnorm(n_source)
+tau_source_individual <- 1 + 0.5 * X_source + 1.5 * U_source
+Y1_source <- Y0_source + tau_source_individual
+
+Y_source <- D_source * Y1_source + (1 - D_source) * Y0_source
+
+# Potential outcomes in the target population
+Y0_target <- 1 + 0.5 * X_target + 1.0 * U_target + rnorm(n_target)
+tau_target_individual <- 1 + 0.5 * X_target + 1.5 * U_target
+Y1_target <- Y0_target + tau_target_individual
+
+# True estimands
+true_source_ate <- mean(tau_source_individual)
+true_target_ate <- mean(tau_target_individual)
+
+# Naive internal source estimate
+internal_source_estimate <- mean(Y_source[D_source == 1]) -
+  mean(Y_source[D_source == 0])
+
+# External transport using only X
+model_y1_x <- lm(Y_source ~ X_source, subset = D_source == 1)
+model_y0_x <- lm(Y_source ~ X_source, subset = D_source == 0)
+
+pred_y1_x <- predict(
+  model_y1_x,
+  newdata = data.frame(X_source = X_target)
+)
+
+pred_y0_x <- predict(
+  model_y0_x,
+  newdata = data.frame(X_source = X_target)
+)
+
+external_x_estimate <- mean(pred_y1_x - pred_y0_x)
+
+# Proxy-based external transport using X and Z
+model_y1_xz <- lm(Y_source ~ X_source + Z_source, subset = D_source == 1)
+model_y0_xz <- lm(Y_source ~ X_source + Z_source, subset = D_source == 0)
+
+pred_y1_xz <- predict(
+  model_y1_xz,
+  newdata = data.frame(
+    X_source = X_target,
+    Z_source = Z_target
+  )
+)
+
+pred_y0_xz <- predict(
+  model_y0_xz,
+  newdata = data.frame(
+    X_source = X_target,
+    Z_source = Z_target
+  )
+)
+
+external_xz_estimate <- mean(pred_y1_xz - pred_y0_xz)
+
+results <- data.frame(
+  Quantity = c(
+    "True source ATE",
+    "True target ATE",
+    "Internal source estimate",
+    "External estimate using X only",
+    "External estimate using X and proxy Z"
+  ),
+  Estimate = c(
+    true_source_ate,
+    true_target_ate,
+    internal_source_estimate,
+    external_x_estimate,
+    external_xz_estimate
+  )
+)
+
+knitr::kable(results, digits = 3)
+```
+
+## Interpretation
+
+The treatment effect is
+
+$$
+Y(1)-Y(0)
+=
+1 + 0.5X + 1.5U.
+$$
+
+The target population has a higher mean value of \(U\) than the source population:
+
+$$
+\mathbb{E}(U\mid S=0)
+>
+\mathbb{E}(U\mid S=1).
+$$
+
+Therefore, the target-population treatment effect is larger than the source-population treatment effect.
+
+Randomization identifies the source ATE. However, transporting using only \(X\) fails because \(X\) does not capture the cross-population shift in \(U\). The proxy \(Z\) partially recovers this latent shift and improves estimation of the target ATE.
+
+```{r plot-results}
+barplot(
+  height = results$Estimate,
+  names.arg = c("True S", "True T", "Internal", "X only", "X + Z"),
+  las = 2,
+  ylab = "ATE",
+  main = "Internal Validity and External Validity Estimates"
+)
+abline(h = true_target_ate, lty = 2)
+```
+
+# Conclusion
+
+Internal validity can hold in the presence of unobserved effect modifiers because randomization balances unobserved variables across treatment arms inside the study population. External validity is different. If unobserved effect modifiers have different distributions in the source and target populations, the source-population ATE does not generally equal the target-population ATE.
+
+The proposed solution is to use proxies for latent effect modifiers. Under latent transportability, proxy measurement invariance, bridge-function existence, and completeness, the target ATE is identified by
+
+$$
+\tau_0
+=
+\mathbb{E}
+\left[
+h_1(X,Z)-h_0(X,Z)
+\mid S=0
+\right].
+$$
+
+This is the central identification formula.

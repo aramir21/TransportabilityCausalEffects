@@ -1,0 +1,1011 @@
+---
+title: "Transporting Experimental Estimates Under Unobserved Confounding and Unobserved Effect Modification: Identification, Estimation, and Sensitivity Analysis"
+author: "Santiago Jiménez Londoño — Universidad EAFIT"
+date: "`r format(Sys.Date(), '%B %d, %Y')`"
+output:
+  html_document:
+    number_sections: true
+    toc: true
+    toc_float: true
+  pdf_document:
+    number_sections: true
+    toc: true
+    toc_depth: 2
+header-includes:
+  - \usepackage{amsmath, amssymb, amsthm, bm}
+  - \newtheorem{theorem}{Theorem}
+  - \newtheorem{proposition}{Proposition}
+  - \newtheorem{lemma}{Lemma}
+  - \newtheorem{assumption}{Assumption}
+  - \newtheorem{remark}{Remark}
+  - \newtheorem{definition}{Definition}
+abstract: >
+  Randomized experiments in education identify average treatment effects for the
+  experimental population without any assumption on unobserved confounders or
+  unobserved effect modifiers. The same is not true when the estimand is the
+  by variables that are differentially distributed across populations render the
+  target-population effect unidentified, even with a perfectly executed trial.
+  This paper formalizes the asymmetry within the potential-outcome framework and
+  with selection diagrams, gives a constructive non-identification result for the
+  target average treatment effect, and characterizes a minimal set of assumptions
+  under which transport is possible while remaining fully agnostic about
+  (i) unobserved confounders of treatment uptake in the target population and
+  (ii) unobserved effect modifiers, provided the latter are conditionally
+  independent of population membership given observed covariates. We derive the
+  transport (g-)formula, an inverse-odds weighting representation, and an
+  augmented, doubly robust estimator, and we develop a sharp sensitivity bound —
+  expressed as a Lipschitz constant of the conditional effect surface times a
+  Wasserstein distance between conditional modifier laws — for violations of the
+  key assumption. A Monte Carlo study calibrated to an education-scale-up setting
+  the target estimand, the proposed estimators are consistent under the stated
+  assumptions, the augmented estimator is doubly robust, and the sensitivity
+  bound covers the bias when the key assumption fails.
+  average effect in an external target population: heterogeneous effects driven
+  confirms the theory: naive trial and observational estimators are biased for
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE,
+                      fig.align = "center", fig.width = 7, fig.height = 4.2)
+set.seed(2026)
+```
+
+# Introduction
+
+## Relevance of the problem
+
+Education research has converged on the randomized controlled trial (RCT) as the
+benchmark design for evaluating interventions — tutoring programs, curricular
+reforms, teacher coaching, ed-tech deployments. Randomization solves the problem
+of *internal validity*: within the experimental sample, the difference in mean
+outcomes between treated and control arms is unbiased for the average treatment
+effect (ATE) *in that sample*, regardless of how many confounders remain
+unmeasured and regardless of how heterogeneous the treatment effect is.
+
+The policy question, however, is almost never about the experimental sample. A
+ministry of education that funds a tutoring RCT in a convenience sample of urban
+schools wants to know the effect of *scaling the program to the national school
+system*. The experimental sample is volunteered, screened, and monitored; the
+target population is not. When treatment effects are heterogeneous in variables
+whose distribution differs between the trial and the target — student motivation,
+school managerial capacity, baseline instructional quality — the trial ATE and
+the target ATE are different parameters. This is the problem of *external
+validity*, or in the terminology of Pearl and Bareinboim (2014),
+*transportability*.
+
+The methodological tension this paper addresses is the following asymmetry,
+which is well known informally but is rarely stated with full precision:
+
+1. **Internal validity is robust.** Randomization delivers identification of the
+   trial ATE under *no* assumptions about unobserved confounders $U$ or
+   unobserved effect modifiers $V$. Both are balanced (in distribution) across
+   arms by design; $V$ is simply averaged at its trial-population distribution.
+
+2. **External validity is fragile.** The target ATE depends on the distribution
+   of effect modifiers in the target population. If a modifier $V$ is unobserved
+   and its distribution differs across populations, the target ATE is *not
+   identified* from the trial data plus covariate data on the target — and we
+   prove this constructively, not merely by failure of a sufficient condition.
+
+The contribution is then constructive. We characterize assumptions under which
+transport succeeds *while remaining agnostic about both nuisances*:
+unobserved confounders of treatment uptake in the target population are
+irrelevant (because identification routes through the experiment, never through
+the target's observational treatment assignment), and unobserved effect
+modifiers are tolerated provided they are conditionally independent of
+population membership given an observed covariate vector $W$ — equivalently,
+provided $W$ *d*-separates the selection node from the modifiers in the
+selection diagram. We make three further points that matter in practice:
+
+- The identifying assumption can be weakened from full conditional
+  exchangeability of potential outcomes over populations to an assumption on the
+  *mean-difference scale only* (transportability of the conditional ATE), which
+  is strictly weaker and is the actual requirement.
+- The resulting functional admits an inverse-odds-of-participation weighting
+  representation and an augmented (AIPW-type) estimator that is consistent if
+  *either* the participation model *or* the trial outcome model is correctly
+  specified.
+- When the key assumption fails, the bias has an exact representation as the
+  target-averaged covariance between the conditional effect surface and the
+  shift in the conditional modifier law; this yields a transparent sensitivity
+  bound of the form $\lambda \cdot \rho$ (Lipschitz constant of the effect in
+  the modifier, times an average Wasserstein distance between conditional
+  modifier distributions).
+
+The identification results connect to a literature spanning epidemiology and
+econometrics — Cole and Stuart (2010), Stuart, Cole, Bradshaw and Leaf (2011),
+Hotz, Imbens and Mortimer (2005), Dahabreh, Robertson, Tchetgen Tchetgen,
+Stuart and Hernán (2019), Pearl and Bareinboim (2014), Bareinboim and Pearl
+(2016). Relative to that literature, the emphasis here is on (a) the precise
+logical asymmetry between internal and external validity in the presence of the
+two unobserved nuisances, (b) the mean-scale weakening of the transport
+assumption, and (c) a sensitivity analysis with an interpretable
+Lipschitz–Wasserstein structure.
+
+# Setup, Notation, and Graphs
+
+## Populations, sampling, and potential outcomes
+
+Let $(\Omega, \mathcal{F}, P)$ support an i.i.d. sample of units
+$i = 1, \dots, n$ drawn from a *super-population* that mixes two populations
+indexed by $S_i \in \{0, 1\}$:
+
+- $S_i = 1$: the **trial population** (units eligible and enrolled in the RCT);
+- $S_i = 0$: the **target population** (units to which the policy would be
+  scaled).
+
+For each unit define a binary treatment $A_i \in \{0,1\}$, potential outcomes
+$\big(Y_i(0), Y_i(1)\big)$, an observed pre-treatment covariate vector
+$W_i \in \mathcal{W} \subseteq \mathbb{R}^{d}$, an **unobserved effect
+modifier** $V_i \in \mathcal{V} \subseteq \mathbb{R}$, and an **unobserved
+confounder** $U_i \in \mathbb{R}$. The observed outcome is
+$Y_i = Y_i(A_i)$ under consistency (Assumption A1 below). In the trial,
+treatment is assigned by a known randomization device; in the target population
+treatment uptake (if observed at all) is *self-selected* and may depend
+arbitrarily on $U_i$, which also affects outcomes.
+
+The conditional average treatment effect (CATE) surface is
+$$
+\tau(w, v) \;=\; \mathbb{E}\big[\,Y(1) - Y(0)\,\big|\, W = w,\; V = v\,\big],
+$$
+and the two population-level estimands are
+$$
+\tau_1 \;=\; \mathbb{E}\big[Y(1) - Y(0)\,\big|\,S = 1\big]
+\qquad\text{(trial ATE, internal validity)},
+$$
+$$
+\tau_0 \;=\; \mathbb{E}\big[Y(1) - Y(0)\,\big|\,S = 0\big]
+\qquad\text{(target ATE, external validity)}.
+$$
+
+**Observed data.** The analyst observes
+$O_i = \big(S_i,\; W_i,\; S_i A_i,\; S_i Y_i,\; (1-S_i) A_i^{obs},\;
+(1-S_i) Y_i^{obs}\big)$: full experimental data in the trial, covariates in the
+target, and possibly observational (confounded) treatment–outcome data in the
+target. Neither $V_i$ nor $U_i$ is ever observed in either population.
+
+## Selection diagrams
+
+Following Pearl and Bareinboim (2014), we encode cross-population structure with
+a *selection diagram*: a causal DAG over $(W, V, U, A, Y)$ augmented with a
+selection node $S$ whose children are exactly the variables whose mechanisms (or
+exogenous distributions) may differ between the two populations. The two regimes
+we study are drawn below in the Simulation section's graphics device; their
+structure is:
+
+**Diagram $\mathcal{G}_1$ (transportable case).**
+$W \to V$, $V \to Y$, $W \to Y$, $U \to Y$, $A \to Y$, and $S \to W$
+(populations differ in the law of $W$, hence — only *through* $W$ — in the law
+of $V$). In the trial regime, $A$ has no parents (randomization); in the
+target's observational regime, $U \to A$. The crucial feature is the **absence
+of an edge $S \to V$ except through $W$**: conditioning on $W$ *d*-separates $S$
+from $V$, i.e. $V \perp\!\!\!\perp S \mid W$.
+
+**Diagram $\mathcal{G}_2$ (non-transportable case).**
+Identical, except $S \to V$ directly: populations differ in the conditional law
+of the modifier given $W$. Then $V \not\perp\!\!\!\perp S \mid W$ and, as
+Proposition 2 shows, $\tau_0$ is not identified.
+
+Two readings of the diagrams are worth fixing now. First, $U \to A$ in the
+target regime makes the target's observational contrast
+$\mathbb{E}[Y \mid A=1, S=0] - \mathbb{E}[Y \mid A=0, S=0]$ confounded: the
+back-door path $A \leftarrow U \to Y$ is open. Second, the path
+$S \to W \to V \to Y$ (and $S \to W \to Y$) makes the *trial* contrast a biased
+answer to the *target* question: $S$ and the effect surface share ancestors.
+Internal validity requires blocking the first phenomenon (randomization does it
+by surgery on $A$); external validity requires blocking the second
+(no design can do it; only an assumption on $S$'s children can).
+
+# Internal Validity Under Unobserved Confounders and Effect Modifiers
+
+We first state the assumptions that the *design* delivers, and then prove that
+they suffice for $\tau_1$ with no restriction whatsoever on $(U, V)$.
+
+\begin{assumption}[A1: Consistency / SUTVA]
+$Y_i = A_i Y_i(1) + (1 - A_i) Y_i(0)$ for all $i$; potential outcomes of unit
+$i$ do not depend on the treatments of other units, and there is a single
+version of treatment.
+\end{assumption}
+
+\begin{assumption}[A2: Randomization within the trial]
+For units with $S = 1$, treatment is assigned by a known device with
+$\pi = P(A = 1 \mid S = 1) \in (0,1)$ and
+$$
+A \;\perp\!\!\!\perp\; \big(Y(0),\, Y(1),\, W,\, V,\, U\big) \;\Big|\; S = 1 .
+$$
+\end{assumption}
+
+\begin{theorem}[Internal validity is nuisance-free]
+Under A1–A2,
+$$
+\tau_1 \;=\; \mathbb{E}\big[Y \mid A = 1, S = 1\big]
+\;-\; \mathbb{E}\big[Y \mid A = 0, S = 1\big],
+$$
+and this identification holds for \emph{every} joint law of
+$(U, V, Y(0), Y(1), W)$ given $S=1$. In particular, no assumption is imposed on
+the dependence between $U$ and $(Y(0), Y(1))$, nor on the heterogeneity of
+$\tau(w, v)$ in $(w, v)$.
+\end{theorem}
+
+\begin{proof}
+By A1, $\mathbb{E}[Y \mid A = 1, S = 1] = \mathbb{E}[Y(1) \mid A = 1, S = 1]$.
+By A2, $Y(1) \perp\!\!\!\perp A \mid S=1$, hence
+$\mathbb{E}[Y(1) \mid A = 1, S = 1] = \mathbb{E}[Y(1) \mid S = 1]$. The same
+argument with $a = 0$ gives
+$\mathbb{E}[Y \mid A = 0, S = 1] = \mathbb{E}[Y(0) \mid S = 1]$. Subtracting and
+using linearity of expectations yields $\tau_1$. At no point did the argument
+refer to the law of $U$ or $V$: both are integrated out inside
+$\mathbb{E}[Y(a) \mid S = 1]$ at their trial-population distribution. By
+iterated expectations,
+$$
+\tau_1 = \mathbb{E}\Big[\, \tau(W, V) \,\Big|\, S = 1 \Big]
+       = \int_{\mathcal{W}\times\mathcal{V}} \tau(w,v)\,
+         dF_{W,V \mid S=1}(w,v),
+$$
+which makes explicit that heterogeneity is *averaged*, not *assumed away*.
+\qedhere
+\end{proof}
+
+\begin{remark}[Why $U$ is harmless]
+The unobserved confounder $U$ threatens identification only through the channel
+$U \to A$. Randomization performs graph surgery: it deletes all arrows into $A$
+in the trial regime, closing every back-door path $A \leftarrow \cdots \to Y$,
+including those through $U$. Confounders that are never given a path into $A$
+cannot confound.
+\end{remark}
+
+\begin{remark}[Why $V$ is harmless — for $\tau_1$]
+The unobserved modifier $V$ changes \emph{what} $\tau_1$ is, not \emph{whether}
+it is identified: $\tau_1$ is by definition the $F_{W,V\mid S=1}$-average of
+$\tau(w,v)$. Identification of an average never requires observing the variable
+over which one averages. This is exactly the property that fails to extend to
+$\tau_0$, because $\tau_0$ averages the same surface against a \emph{different,
+and unidentified}, distribution $F_{W,V \mid S=0}$.
+\end{remark}
+
+# The Failure of External Validity
+
+## Exact bias decomposition
+
+\begin{lemma}[Transport bias]
+Under A1–A2, the discrepancy between the (identified) trial ATE and the
+(target) estimand is
+$$
+\tau_1 - \tau_0
+= \int \tau(w, v)\,\Big[ dF_{W,V \mid S=1}(w,v) - dF_{W,V \mid S=0}(w,v) \Big].
+$$
+Hence $\tau_1 = \tau_0$ for all data-generating processes if and only if either
+(i) $\tau(w,v)$ is constant ($\tau$-homogeneity), or
+(ii) $F_{W,V\mid S=1} = F_{W,V \mid S=0}$ (random sampling of the trial from
+the target). Neither condition is testable from the observed data, since
+$\tau(w, \cdot)$ and $F_{V \mid \cdot}$ involve the unobserved $V$.
+\end{lemma}
+
+The proof is immediate from the iterated-expectation representation in
+Theorem 1 applied at $S=1$ and $S=0$. The lemma already shows the asymmetry:
+the *same* heterogeneity that was harmlessly averaged in Theorem 1 is the exact
+source of bias once the averaging measure changes.
+
+## Constructive non-identification
+
+We now show that the problem is not a failure of one particular estimator but a
+failure of identification: the observed-data law does not pin down $\tau_0$.
+
+\begin{proposition}[Non-identification of $\tau_0$]
+Suppose the analyst observes the law of
+$O = (S, W, SA, SY, (1-S)A^{obs}, (1-S)Y^{obs})$, where in the target
+population treatment uptake may depend on the unobserved $U$ with $U \to Y$.
+Then there exist two data-generating processes $\mathbb{P}$ and
+$\widetilde{\mathbb{P}}$, both satisfying A1–A2, that induce the \emph{same}
+law of $O$ but have $\tau_0(\mathbb{P}) \neq \tau_0(\widetilde{\mathbb{P}})$.
+Consequently $\tau_0$ is not identified without further assumptions, even
+though $\tau_1$ is.
+\end{proposition}
+
+\begin{proof}
+We construct the pair explicitly. Let $W \equiv 0$ (degenerate, so it carries
+no information), let $V \sim \mathcal{N}(\mu_s, 1)$ given $S = s$, and let
+potential outcomes be $Y(0) = \varepsilon$, $Y(1) = \beta V + \varepsilon$ with
+$\varepsilon \sim \mathcal{N}(0,1)$ independent of everything, $\beta \neq 0$.
+In the trial, $A$ is randomized with $\pi = 1/2$. In the target population, no
+observational data are collected (or, equivalently, uptake is
+$A^{obs} \equiv 0$, so target data reveal only the law of $Y(0)$, which is the
+same $\mathcal{N}(0,1)$ in both constructions).
+
+Process $\mathbb{P}$: $(\mu_1, \mu_0) = (m, m)$.
+Process $\widetilde{\mathbb{P}}$: $(\mu_1, \mu_0) = (m, m')$ with $m' \neq m$.
+
+Both processes generate identical trial data — the trial law depends on
+$F_{V \mid S=1}$ only, and $\mu_1 = m$ in both — and identical target data,
+since $V$ is unobserved and the only target observable, $Y^{obs} = Y(0)$, has
+law $\mathcal{N}(0,1)$ under both. Yet
+$$
+\tau_0(\mathbb{P}) = \beta m
+\quad\neq\quad
+\beta m' = \tau_0(\widetilde{\mathbb{P}}).
+$$
+The same construction goes through when confounded observational
+target data \emph{are} available: take uptake $A^{obs} = \mathbf{1}\{U > 0\}$
+with $(U, V)$ jointly Gaussian and tune the $(U,V)$ covariance so that the
+observable conditional laws $\,Y^{obs} \mid A^{obs}=a, S=0\,$ coincide across
+the two processes while $\mu_0 \ne \mu_0'$; the one-dimensional matching
+conditions leave free parameters because the observed-data law constrains only
+two conditional means, whereas the structural pair
+$(\mu_0, \mathrm{Cov}(U,V))$ is two-dimensional and enters them
+non-degenerately. \qedhere
+\end{proof}
+
+\begin{remark}[The asymmetry, stated once and sharply]
+For $\tau_1$, the unobservables are integrated against a distribution
+\emph{from which the design itself samples}; the design therefore "knows" the
+right measure without the analyst ever seeing it. For $\tau_0$, the unobservable
+modifier must be integrated against $F_{V \mid S = 0}$ — a measure about which
+the trial is silent and the target data (lacking $V$) are equally silent.
+Randomization is surgery on the arrows \emph{into} $A$; external validity is a
+question about the arrows \emph{out of} $S$. No experimental design manipulates
+$S$'s children. This is why internal validity is an engineering achievement
+while external validity is irreducibly an assumption.
+\end{remark}
+
+# Identification: Assumptions and the Transport Formula
+
+## Assumptions
+
+The strategy is to be maximally permissive about $U$ and $V$ and place the
+identifying restriction on the *relationship between the unobservables and
+population membership*, conditional on what is observed.
+
+\begin{assumption}[A3: Participation positivity]
+$P(S = 1 \mid W = w) > 0$ for $F_{W \mid S=0}$-almost every $w$, and
+$P(S=0) > 0$.
+\end{assumption}
+
+\begin{assumption}[A4: Conditional transportability of the CATE
+(mean-scale $S$-admissibility of $W$)]
+$$
+\mathbb{E}\big[\,Y(1) - Y(0)\,\big|\,W,\, S = 1\,\big]
+\;=\;
+\mathbb{E}\big[\,Y(1) - Y(0)\,\big|\,W,\, S = 0\,\big]
+\qquad \text{a.s.}
+$$
+\end{assumption}
+
+Three structured comments on A4, in decreasing order of strength of sufficient
+conditions:
+
+1. **Full exchangeability** $\big(Y(0), Y(1)\big) \perp\!\!\!\perp S \mid W$
+   implies A4 but is *strictly stronger*: A4 permits the level
+   $\mathbb{E}[Y(a) \mid W, S]$ to depend on $S$, as long as the *difference*
+   does not. In education applications this matters: trial schools may have
+   systematically different outcome levels (Hawthorne-type or monitoring
+   effects on both arms) without violating A4.
+
+2. **Graphical sufficient condition.** If the selection diagram is
+   $\mathcal{G}_1$ — no edge from $S$ into $V$ (nor into $Y$, nor into $A$'s
+   effect mechanism) except through $W$ — then $V \perp\!\!\!\perp S \mid W$,
+   and if additionally $\tau(W, V)$ is the only channel of heterogeneity,
+   $$
+   \mathbb{E}\big[\tau(W,V) \mid W, S=s\big]
+   = \int \tau(W, v)\, dF_{V \mid W}(v)
+   $$
+   is free of $s$, which is A4. Thus A4 is exactly the requirement that $W$
+   \emph{d-separates the selection node from the unobserved effect modifiers}.
+   $W$ acts as a \emph{proxy sufficient set}: we never observe $V$, we only
+   need $W$ to absorb all of the cross-population variation in $V$'s law.
+
+3. **What A4 does \emph{not} require.** It imposes nothing on $U$: the
+   unobserved confounder of target-population uptake may be arbitrarily
+   related to $(Y(0), Y(1), V, W, S)$. The reason is architectural — the
+   identification below never touches the target's observational
+   treatment–outcome data, so the back-door path $A \leftarrow U \to Y$ in the
+   target regime is simply never traversed.
+
+## The transport formula
+
+Define the trial conditional arm means and CATE,
+$$
+\mu_a(w) = \mathbb{E}\big[Y \mid A = a,\, W = w,\, S = 1\big],
+\qquad
+\tau(w) = \mu_1(w) - \mu_0(w),
+$$
+the participation score $e(w) = P(S = 1 \mid W = w)$, and the inverse-odds
+weight
+$$
+\omega(w) \;=\; \frac{1 - e(w)}{e(w)} \;=\;
+\frac{P(S=0 \mid W=w)}{P(S=1 \mid W=w)} .
+$$
+
+\begin{theorem}[Identification of the target ATE]
+Under A1–A4,
+
+\begin{equation}
+\begin{aligned}
+\tau_0
+&=
+\mathbb{E}\big[ \tau(W) \mid S = 0 \big]  \\
+&=
+\frac{1}{P(S=0)}
+\mathbb{E}\left[
+S\,\omega(W)
+\left(
+\frac{A}{\pi}
+-
+\frac{1-A}{1-\pi}
+\right)Y
+\right].
+\end{aligned}
+\label{eq:transport}
+\end{equation}
+
+Both expressions are functionals of the observed-data law only; in particular
+they use no target-population outcome data and no knowledge of $(U, V)$.
+\end{theorem}
+
+\begin{proof}
+\emph{(g-formula form.)} By iterated expectations over $W$ given $S = 0$,
+$$
+\tau_0
+= \mathbb{E}\Big[\, \mathbb{E}\big[Y(1)-Y(0) \mid W, S=0\big] \,\Big|\, S=0 \Big]
+\overset{\text{A4}}{=}
+\mathbb{E}\Big[\, \mathbb{E}\big[Y(1)-Y(0) \mid W, S=1\big] \,\Big|\, S=0 \Big].
+$$
+Within the trial, A2 holds conditionally on $W$ (randomization is independent
+of everything, hence of functions of $(W, Y(a))$ jointly), so the inner
+conditional expectation is identified exactly as in Theorem 1 but at fixed $W$:
+$$
+\mathbb{E}\big[Y(1)-Y(0) \mid W, S=1\big]
+= \mu_1(W) - \mu_0(W) = \tau(W),
+$$
+where A3 guarantees $\tau(w)$ is well defined $F_{W\mid S=0}$-a.e. This gives
+$\tau_0 = \mathbb{E}[\tau(W) \mid S=0]$.
+
+\emph{(Weighting form.)} For any integrable $g(W)$, Bayes' rule gives
+$$
+\mathbb{E}\big[g(W) \mid S=0\big]
+= \frac{\mathbb{E}\big[(1-S)\, g(W)\big]}{P(S=0)}
+= \frac{\mathbb{E}\big[\,S\, \omega(W)\, g(W)\big]}{P(S=0)},
+$$
+where the second equality follows from
+$\mathbb{E}[(1-S)g(W)] = \mathbb{E}[(1-e(W))g(W)]
+= \mathbb{E}\big[e(W)\,\omega(W) g(W)\big]
+= \mathbb{E}\big[S\,\omega(W) g(W)\big]$
+by conditioning on $W$. Apply this with $g(W) = \tau(W)$ and note that, by A2
+and A1, the Horvitz–Thompson contrast satisfies
+$\mathbb{E}\big[ \big(\tfrac{A}{\pi} - \tfrac{1-A}{1-\pi}\big) Y
+\,\big|\, W, S=1 \big] = \tau(W)$; substituting and using iterated expectations
+yields (T). \qedhere
+\end{proof}
+
+\begin{remark}
+The estimand routes through $S = 1$ outcome data and $S \in \{0,1\}$ covariate
+data only. This is the formal sense in which the method is robust to
+\emph{unobserved confounding in the target population}: confounded
+observational data in the target are not an input. They can, however, be used
+for falsification (comparing the transported $\widehat{\tau}_0$ to bounds the
+observational data imply) — a use we do not develop here.
+\end{remark}
+
+## Estimation: plug-in, weighting, and a doubly robust estimator
+
+Let $\widehat{e}(w)$ be an estimator of the participation score (e.g. logistic
+regression of $S$ on $W$ on the pooled sample), $\widehat{\omega} =
+(1-\widehat{e})/\widehat{e}$, and $\widehat{\mu}_a(w)$ an estimator of the
+trial outcome regression. With $n_0 = \sum_i (1 - S_i)$, define:
+
+**(i) Outcome-model (g-formula) estimator**
+$$
+\widehat{\tau}_0^{\,om}
+= \frac{1}{n_0} \sum_{i: S_i = 0}
+\big\{ \widehat{\mu}_1(W_i) - \widehat{\mu}_0(W_i) \big\}.
+$$
+
+**(ii) Inverse-odds weighting (Hájek) estimator**
+$$
+\widehat{\tau}_0^{\,ipw}
+= \frac{\sum_{i: S_i=1} \widehat{\omega}(W_i)\, A_i Y_i}
+       {\sum_{i: S_i=1} \widehat{\omega}(W_i)\, A_i}
+\;-\;
+  \frac{\sum_{i: S_i=1} \widehat{\omega}(W_i)\, (1-A_i) Y_i}
+       {\sum_{i: S_i=1} \widehat{\omega}(W_i)\, (1-A_i)} .
+$$
+
+**(iii) Augmented (AIPW) estimator**
+$$
+\widehat{\tau}_0^{\,dr}
+= \frac{1}{n\,\widehat{P}(S=0)} \sum_{i=1}^{n}
+\left[
+(1 - S_i)\,\big\{\widehat{\mu}_1(W_i) - \widehat{\mu}_0(W_i)\big\}
+\;+\;
+S_i\, \widehat{\omega}(W_i)
+\Big( \frac{A_i}{\pi} \,\widehat{R}_{1i} - \frac{1-A_i}{1-\pi}\,
+\widehat{R}_{0i} \Big)
+\right],
+$$
+with residuals $\widehat{R}_{ai} = Y_i - \widehat{\mu}_a(W_i)$. This is the
+sample analogue of the (uncentered) efficient influence function for $\tau_0$
+in this model (cf. Dahabreh et al., 2019).
+
+\begin{proposition}[Double robustness]
+Let $\bar e, \bar\mu_a$ denote the probability limits of
+$\widehat e, \widehat\mu_a$, and let $\bar\omega = (1-\bar e)/\bar e$. Under
+A1–A4 and standard regularity (uniform convergence; $\bar e$ bounded away from
+$0$ on the target support), $\widehat{\tau}_0^{\,dr} \xrightarrow{p} \tau_0$ if
+\emph{either} $\bar e = e$ \emph{or} $\bar\mu_a = \mu_a$ ($a = 0,1$), not
+necessarily both.
+\end{proposition}
+
+\begin{proof}
+Write the population functional at limits $(\bar\mu_a, \bar\omega)$:
+$$
+T(\bar\mu, \bar\omega)
+= \frac{1}{P(S=0)}\,\mathbb{E}\!\left[
+(1-S)\,\bar\Delta(W)
++ S\,\bar\omega(W)\Big( \tfrac{A}{\pi}\{Y - \bar\mu_1(W)\}
+- \tfrac{1-A}{1-\pi}\{Y - \bar\mu_0(W)\} \Big) \right],
+$$
+where $\bar\Delta = \bar\mu_1 - \bar\mu_0$.
+Condition the second term on $(W, S=1)$ and use A2:
+$\mathbb{E}\big[\tfrac{A}{\pi}\{Y - \bar\mu_1\} \mid W, S=1\big]
+= \mu_1(W) - \bar\mu_1(W)$ and analogously for $a=0$, so
+$$
+T(\bar\mu, \bar\omega)
+= \frac{1}{P(S=0)}\Big\{
+\mathbb{E}\big[(1-S)\bar\Delta(W)\big]
++ \mathbb{E}\big[\,e(W)\,\bar\omega(W)\,\{\tau(W) - \bar\Delta(W)\}\big]
+\Big\}.
+$$
+\emph{Case 1: $\bar\mu_a = \mu_a$.} Then $\bar\Delta = \tau$, the second term
+vanishes identically (regardless of $\bar\omega$), and the first term equals
+$\mathbb{E}[(1-S)\tau(W)]/P(S=0) = \mathbb{E}[\tau(W) \mid S=0] = \tau_0$ by
+Theorem 2.
+\emph{Case 2: $\bar e = e$.} Then $e\bar\omega = 1 - e$, so the bracket equals
+$$
+\mathbb{E}\big[(1-e(W))\,\bar\Delta(W)\big]
++ \mathbb{E}\big[(1-e(W))\{\tau(W) - \bar\Delta(W)\}\big]
+= \mathbb{E}\big[(1-e(W))\,\tau(W)\big]
+= \mathbb{E}\big[(1-S)\,\tau(W)\big],
+$$
+and dividing by $P(S=0)$ again yields $\tau_0$. Consistency of the sample
+analogue then follows from the law of large numbers plus the assumed uniform
+convergence of the nuisance estimators. \qedhere
+\end{proof}
+
+## Sensitivity analysis for violations of A4
+
+Suppose A4 fails. Define the *transport gap*
+$$
+\delta(w) \;=\;
+\mathbb{E}\big[Y(1)-Y(0) \mid W=w, S=0\big]
+-
+\mathbb{E}\big[Y(1)-Y(0) \mid W=w, S=1\big],
+$$
+so that, exactly,
+
+\begin{equation}
+\begin{aligned}
+\tau_0
+&=
+\underbrace{
+\mathbb{E}\big[\tau(W)\mid S=0\big]
+}_{\text{identified target of } \widehat{\tau}_0}
++
+\underbrace{
+\mathbb{E}\big[\delta(W)\mid S=0\big]
+}_{\text{bias}} .
+\end{aligned}
+\label{eq:bias-decomposition}
+\end{equation}
+
+\begin{proposition}[Lipschitz–Wasserstein sensitivity bound]
+Suppose heterogeneity operates through $(W,V)$, i.e.
+$\mathbb{E}[Y(1)-Y(0) \mid W, V, S] = \tau(W, V)$ does not depend on $S$
+(the structural surface is invariant; only the \emph{distribution} of $V$
+shifts), and suppose $v \mapsto \tau(w, v)$ is $\lambda$-Lipschitz for all $w$.
+Let $\rho(w) = \mathcal{W}_1\big(F_{V \mid W=w, S=0},\, F_{V\mid W=w, S=1}\big)$
+denote the 1-Wasserstein distance between the conditional modifier laws. Then
+$$
+\big|\tau_0 - \mathbb{E}[\tau(W) \mid S=0]\big|
+\;\le\; \lambda \cdot \mathbb{E}\big[\rho(W) \,\big|\, S=0\big]
+\;=:\; \lambda \bar\rho .
+$$
+\end{proposition}
+
+\begin{proof}
+For each $w$,
+$\delta(w) = \int \tau(w,v)\,\big[dF_{V\mid w, S=0} - dF_{V \mid w, S=1}\big](v)$.
+By Kantorovich–Rubinstein duality,
+$\sup\{\int f\, d(P-Q) : f \ \text{1-Lipschitz}\} = \mathcal{W}_1(P, Q)$, so
+$|\delta(w)| \le \lambda\, \rho(w)$. Take expectations over $W \mid S=0$ in
+(B) and apply the triangle inequality. \qedhere
+\end{proof}
+
+In applications $(\lambda, \bar\rho)$ are sensitivity parameters: $\lambda$ is
+the maximal slope of the effect in the unobserved modifier (elicitable from
+subject-matter knowledge or benchmarked against observed-modifier slopes), and
+$\bar\rho$ is the average residual shift in the modifier's conditional law not
+explained by $W$ (benchmarkable, e.g., against the shift in an observed
+covariate deliberately left out of $W$). Reporting
+$\big[\widehat\tau_0 - \lambda\bar\rho,\; \widehat\tau_0 + \lambda\bar\rho\big]$
+over a grid of $(\lambda, \bar\rho)$ converts the untestable A4 into a
+transparent robustness statement.
+
+# Simulation
+
+The design mimics an education scale-up: a tutoring program is evaluated in an
+RCT whose schools are recruited disproportionately from high-baseline contexts
+($W$, observed: baseline achievement / SES index), the effect is larger for
+more motivated students ($V$, unobserved, correlated with $W$), and in the
+target population uptake of comparable programs is driven by unobserved family
+resources ($U$), which also raise outcomes — a textbook confounder.
+
+## Data-generating process
+
+With $\Phi$-independent standard normal shocks,
+$$
+W \sim \mathcal{N}(0,1), \quad
+V = 0.8\,W + \varepsilon_V, \quad
+U \sim \mathcal{N}(0,1), \quad
+P(S=1 \mid W) = \mathrm{logit}^{-1}(-0.5 + 1.2\,W),
+$$
+$$
+A \mid S=1 \sim \mathrm{Bern}(0.5), \qquad
+A \mid S=0 = \mathbf{1}\{0.8\,U + \nu > 0\},
+$$
+$$
+Y = 1 + \tau_a A + \tau_v\, A V + 0.5\,W + 0.8\,U + \varepsilon_Y,
+\qquad (\tau_a, \tau_v) = (1,\ 0.5).
+$$
+Note the three structural facts the theory predicts: (a) $V \perp\!\!\!\perp S
+\mid W$ holds by construction (selection depends on $W$ and independent noise
+only), so A4 holds; (b) $U$ confounds the target's observational contrast;
+(c) $\mathbb{E}[V \mid S=1] > \mathbb{E}[V \mid S=0]$, so $\tau_1 > \tau_0$.
+
+```{r dgp}
+expit <- function(x) 1 / (1 + exp(-x))
+tau_a <- 1.0; tau_v <- 0.5
+
+draw <- function(n, violate = FALSE, seed = NULL) {
+  if (!is.null(seed)) set.seed(seed)
+  W   <- rnorm(n)
+  V   <- 0.8 * W + rnorm(n)                       # unobserved effect modifier
+  U   <- rnorm(n)                                 # unobserved confounder
+  pS  <- if (violate) expit(-0.5 + 0.8 * W + 1.0 * V)   # A4 violated: S <- V
+         else         expit(-0.5 + 1.2 * W)             # A4 holds:    S <- W only
+  S   <- rbinom(n, 1, pS)
+  A   <- ifelse(S == 1,
+                rbinom(n, 1, 0.5),                # randomized in the trial
+                as.integer(0.8 * U + rnorm(n) > 0))  # confounded uptake in target
+  Y   <- 1 + tau_a * A + tau_v * A * V + 0.5 * W + 0.8 * U + rnorm(n)
+  data.frame(W, V, U, S, A, Y)
+}
+
+## Ground truth by large Monte Carlo
+big <- draw(4e6, violate = FALSE, seed = 1)
+tau1_true <- tau_a + tau_v * mean(big$V[big$S == 1])
+tau0_true <- tau_a + tau_v * mean(big$V[big$S == 0])
+c(tau1_true = round(tau1_true, 3), tau0_true = round(tau0_true, 3))
+```
+
+The trial ATE ($\approx 1.22$) and the target ATE ($\approx 0.85$) differ by
+roughly 0.37 — about 44% of the target effect. Reporting the internally valid
+trial estimate as the policy parameter would overstate the scaled-up effect by
+nearly half.
+
+## Selection diagrams
+
+```{r dags, echo=TRUE, fig.height=3.6, fig.width=8.5}
+draw_dag <- function(nodes, edges, title) {
+  plot.new()
+  plot.window(xlim = c(0, 10), ylim = c(0, 6))
+  
+  for (e in edges) {
+    p1 <- nodes[[e[1]]]
+    p2 <- nodes[[e[2]]]
+    
+    is_dashed <- length(e) >= 3 && identical(e[3], "d")
+    
+    d <- p2 - p1
+    d <- d / sqrt(sum(d^2))
+    
+    a <- p1 + 0.45 * d
+    b <- p2 - 0.45 * d
+    
+    arrows(
+      a[1], a[2], b[1], b[2],
+      length = 0.09,
+      lty = if (is_dashed) 2 else 1,
+      col = if (is_dashed) "firebrick" else "black"
+    )
+  }
+  
+  for (nm in names(nodes)) {
+    p <- nodes[[nm]]
+    unobs <- nm %in% c("U", "V")
+    sel <- nm == "S"
+    
+    if (sel) {
+      rect(p[1] - .38, p[2] - .32, p[1] + .38, p[2] + .32, lwd = 2)
+    } else {
+      symbols(
+        p[1], p[2],
+        circles = .42,
+        inches = FALSE,
+        add = TRUE,
+        fg = if (unobs) "gray45" else "black",
+        lty = if (unobs) 2 else 1
+      )
+    }
+    
+    text(
+      p[1], p[2], nm,
+      font = 2,
+      col = if (unobs) "gray35" else "black"
+    )
+  }
+  
+  title(main = title, cex.main = .95)
+}
+
+nodes <- list(
+  S = c(1, 5),
+  W = c(3, 5),
+  V = c(5, 5),
+  U = c(7, 5),
+  A = c(3, 1.5),
+  Y = c(6, 1.5)
+)
+
+op <- par(mfrow = c(1, 2), mar = c(.5, .5, 2, .5))
+
+draw_dag(
+  nodes,
+  list(
+    c("S","W"), c("W","V"), c("V","Y"), c("W","Y"),
+    c("U","Y"), c("A","Y"), c("U","A","d")
+  ),
+  expression(G[1]*": transportable")
+)
+
+draw_dag(
+  nodes,
+  list(
+    c("S","W"), c("W","V"), c("V","Y"), c("W","Y"),
+    c("U","Y"), c("A","Y"), c("U","A","d"), c("S","V","d")
+  ),
+  expression(G[2]*": non-transportable")
+)
+
+par(op)
+```
+
+Square node: selection indicator. Dashed gray circles: unobserved variables.
+The dashed red edge $U \to A$ is present only in the target's observational
+regime (it is severed by randomization when $S=1$). In $\mathcal{G}_1$,
+conditioning on $W$ blocks every path from $S$ to $V$, so
+$V \perp\!\!\!\perp S \mid W$ and A4 holds; in $\mathcal{G}_2$ the direct edge
+$S \to V$ keeps $S$ and $V$ dependent given $W$ and identification fails.
+
+## Estimators
+
+```{r estimators}
+estimate_all <- function(d) {
+  tr <- d[d$S == 1, ]; tg <- d[d$S == 0, ]
+
+  ## (0) internally valid trial estimate; naive observational target estimate
+  dm_trial <- mean(tr$Y[tr$A == 1]) - mean(tr$Y[tr$A == 0])
+  dm_obs   <- mean(tg$Y[tg$A == 1]) - mean(tg$Y[tg$A == 0])
+
+  ## participation score and inverse-odds weights (pooled logistic in W)
+  ps  <- glm(S ~ W, family = binomial, data = d)
+  ehat <- predict(ps, type = "response")
+  w    <- (1 - ehat) / ehat
+  wt   <- w[d$S == 1]
+
+  ## (i) IPW (Hajek) transported estimator
+  ipw <- with(tr, sum(wt * A * Y) / sum(wt * A) -
+                  sum(wt * (1 - A) * Y) / sum(wt * (1 - A)))
+
+  ## (ii) outcome-model (g-formula) estimator: trial regression Y ~ A*W
+  om_fit <- lm(Y ~ A * W, data = tr)
+  cf  <- coef(om_fit)
+  om  <- mean(cf["A"] + cf["A:W"] * tg$W)
+
+  ## (iii) AIPW (doubly robust)
+  m1 <- cf["(Intercept)"] + cf["A"] + (cf["W"] + cf["A:W"]) * d$W
+  m0 <- cf["(Intercept)"] + cf["W"] * d$W
+  p0 <- mean(d$S == 0)
+  dr <- mean((1 - d$S) * (m1 - m0) / p0 +
+             d$S * w * ((d$A / 0.5) * (d$Y - m1) -
+                        ((1 - d$A) / 0.5) * (d$Y - m0)) / p0)
+
+  c(trial_DM = dm_trial, target_obs_DM = dm_obs,
+    IPW = ipw, OM = om, AIPW = dr)
+}
+```
+
+## Monte Carlo: A4 holds
+
+```{r mc-main, cache=TRUE}
+R <- 300; n <- 20000
+res <- t(sapply(seq_len(R), function(s) estimate_all(draw(n, FALSE, seed = s))))
+tab <- rbind(`MC mean` = colMeans(res),
+             `MC sd`   = apply(res, 2, sd),
+             `Bias vs tau0` = colMeans(res) - tau0_true)
+knitr::kable(round(tab, 3), caption = paste0(
+  "300 replications, n = 20,000. True tau1 = ", round(tau1_true, 3),
+  "; true tau0 = ", round(tau0_true, 3), "."))
+```
+
+```{r mc-plot, fig.height=3.8}
+boxplot(res, las = 1, cex.axis = .8,
+        main = "Sampling distributions across 300 replications")
+abline(h = tau0_true, lwd = 2, col = "steelblue")
+abline(h = tau1_true, lwd = 2, lty = 2, col = "gray50")
+legend("topright", bty = "n", cex = .8, lwd = 2, lty = c(1, 2),
+       col = c("steelblue", "gray50"),
+       legend = c(expression(tau[0]~"(target, truth)"),
+                  expression(tau[1]~"(trial, truth)")))
+```
+
+The pattern is exactly the theory. The trial difference-in-means is unbiased
+for $\tau_1$ — Theorem 1 in action, untouched by $U$ and $V$ — but misses
+$\tau_0$ by the full heterogeneity gap. The naive observational contrast in the
+target is even worse: it adds confounding bias from $U$ on top. All three
+transported estimators (IPW, OM, AIPW) are centered on $\tau_0$, despite never
+observing $V$ or $U$, because A4 holds: $W$ absorbs the entire
+cross-population shift in the modifier's distribution.
+
+## Double robustness
+
+```{r dr, cache=TRUE}
+aipw_misspec <- function(d, bad_om = FALSE, bad_e = FALSE) {
+  tr <- d[d$S == 1, ]
+  ehat <- if (bad_e) rep(mean(d$S), nrow(d))         # wrong: constant score
+          else predict(glm(S ~ W, binomial, data = d), type = "response")
+  w <- (1 - ehat) / ehat
+  cf <- if (bad_om) c(coef(lm(Y ~ A, data = tr)), W = 0, `A:W` = 0)  # wrong: no W
+        else coef(lm(Y ~ A * W, data = tr))
+  m1 <- cf[1] + cf["A"] + (cf["W"] + cf["A:W"]) * d$W
+  m0 <- cf[1] + cf["W"] * d$W
+  p0 <- mean(d$S == 0)
+  mean((1 - d$S) * (m1 - m0) / p0 +
+       d$S * w * ((d$A / .5) * (d$Y - m1) -
+                  ((1 - d$A) / .5) * (d$Y - m0)) / p0)
+}
+dr_tab <- t(sapply(seq_len(R), function(s) {
+  d <- draw(n, FALSE, seed = s)
+  c(`wrong OM, correct e` = aipw_misspec(d, bad_om = TRUE),
+    `correct OM, wrong e` = aipw_misspec(d, bad_e  = TRUE),
+    `both wrong`          = aipw_misspec(d, TRUE, TRUE))
+}))
+knitr::kable(round(rbind(`MC mean` = colMeans(dr_tab),
+                         `Bias vs tau0` = colMeans(dr_tab) - tau0_true), 3),
+             caption = "AIPW under nuisance misspecification (300 reps).")
+```
+
+Consistent under either correct nuisance, biased only when both fail —
+Proposition 3 verified. (With both nuisances wrong, the estimator collapses to
+the unweighted trial contrast and recovers $\tau_1$, the predicted failure
+mode.)
+
+## Violation of A4 and the sensitivity bound
+
+We now let selection depend on $V$ directly given $W$
+($\mathcal{G}_2$): $P(S=1 \mid W, V) = \mathrm{logit}^{-1}(-0.5 + 0.8W + V)$.
+
+```{r violation, cache=TRUE}
+bigv <- draw(4e6, violate = TRUE, seed = 2)
+tau0_v <- tau_a + tau_v * mean(bigv$V[bigv$S == 0])
+
+resv <- t(sapply(seq_len(R), function(s) estimate_all(draw(n, TRUE, seed = s))))
+knitr::kable(round(rbind(`MC mean` = colMeans(resv),
+                         `Bias vs tau0` = colMeans(resv) - tau0_v), 3),
+  caption = paste0("A4 violated. True tau0 = ", round(tau0_v, 3), "."))
+```
+
+```{r sensitivity}
+## Oracle ingredients of Proposition 4 (knowable to the simulator, not the analyst):
+## lambda = |tau_v| (Lipschitz constant of tau in v);
+## rho(w)  = W1 distance between N(mu_s(w), .) conditional laws of V given W;
+## for these near-Gaussian conditionals we evaluate rho(w) by within-cell means.
+cells <- cut(bigv$W, quantile(bigv$W, 0:50 / 50), include.lowest = TRUE)
+m1c <- tapply(bigv$V[bigv$S == 1], cells[bigv$S == 1], mean)
+m0c <- tapply(bigv$V[bigv$S == 0], cells[bigv$S == 0], mean)
+p0c <- table(cells[bigv$S == 0]) / sum(bigv$S == 0)   # target weights by cell
+rho_bar <- sum(abs(m0c - m1c) * p0c)                  # E[rho(W) | S = 0]
+bound   <- tau_v * rho_bar
+
+cat(sprintf(
+  "Observed |bias| of AIPW: %.3f   Sensitivity bound lambda*rho_bar: %.3f\n",
+  abs(mean(resv[, "AIPW"]) - tau0_v), bound))
+```
+
+When A4 fails the transported estimators are biased, as Proposition 2 says
+they must be — no estimator can do better without further information. But the
+bias is *covered* by the Lipschitz–Wasserstein bound of Proposition 4: the
+interval $\widehat\tau_0 \pm \lambda\bar\rho$ contains the true $\tau_0$. In
+practice $(\lambda, \bar\rho)$ are not oracle quantities; the recommended
+report is the breakdown frontier — the locus of $(\lambda, \bar\rho)$ pairs at
+which the policy conclusion (e.g. $\tau_0 > 0$, or $\tau_0$ above a
+cost-effectiveness threshold) would be overturned.
+
+```{r breakdown, fig.height=3.8}
+tau_hat <- mean(resv[, "AIPW"])
+lam <- seq(0, 1.2, length.out = 200)
+plot(lam, tau_hat - lam * rho_bar, type = "l", lwd = 2, las = 1,
+     xlab = expression(lambda~"(Lipschitz constant)"),
+     ylab = expression(hat(tau)[0] %+-% lambda * bar(rho)),
+     main = "Sensitivity region and breakdown analysis")
+lines(lam, tau_hat + lam * rho_bar, lwd = 2)
+polygon(c(lam, rev(lam)),
+        c(tau_hat - lam * rho_bar, rev(tau_hat + lam * rho_bar)),
+        col = grDevices::adjustcolor("steelblue", .25), border = NA)
+abline(h = 0, lty = 3); abline(h = tau0_v, col = "firebrick", lwd = 2)
+abline(v = tau_v, lty = 2, col = "gray40")
+legend("bottomleft", bty = "n", cex = .8,
+       legend = c("true tau0", expression("true "*lambda == tau[v])),
+       col = c("firebrick", "gray40"), lwd = c(2, 1), lty = c(1, 2))
+```
+
+# Conclusion
+
+Internal validity is a property of the *design*: randomization closes the
+back-door through any unobserved confounder and lets unobserved effect
+modifiers be averaged at the distribution from which the experiment itself
+samples. External validity is a property of the *population mapping*: it
+requires integrating the same heterogeneous effect surface against a measure —
+the target law of the modifiers — about which the data are silent whenever the
+modifiers are unobserved and differentially distributed. We showed the failure
+is one of identification (Proposition 2), characterized the minimal repair (A4:
+the observed covariates must *d*-separate selection from the unobserved
+modifiers, on the mean-difference scale), derived the transport formula with
+weighting and doubly robust implementations, and bounded the damage when the
+repair fails via a Lipschitz–Wasserstein sensitivity analysis. The Monte Carlo
+evidence matches each claim. The practical prescription for education
+scale-ups is concrete: measure, in *both* the trial and the target, the
+covariates that plausibly drive recruitment *and* effect heterogeneity; route
+identification through the experiment, never through the target's confounded
+uptake; and report the breakdown frontier rather than a single transported
+point estimate.
+
+# References
+
+Bareinboim, E., and J. Pearl (2016): "Causal Inference and the Data-Fusion
+Problem," *Proceedings of the National Academy of Sciences*, 113(27),
+7345–7352.
+
+Cole, S. R., and E. A. Stuart (2010): "Generalizing Evidence From Randomized
+Clinical Trials to Target Populations: The ACTG 320 Trial," *American Journal
+of Epidemiology*, 172(1), 107–115.
+
+Dahabreh, I. J., S. E. Robertson, E. J. Tchetgen Tchetgen, E. A. Stuart, and
+M. A. Hernán (2019): "Generalizing Causal Inferences From Individuals in
+Randomized Trials to All Trial-Eligible Individuals," *Biometrics*, 75(2),
+685–694.
+
+Hernán, M. A., and J. M. Robins (2020): *Causal Inference: What If*. Boca
+Raton: Chapman & Hall/CRC.
+
+Hotz, V. J., G. W. Imbens, and J. H. Mortimer (2005): "Predicting the Efficacy
+of Future Training Programs Using Past Experiences at Other Locations,"
+*Journal of Econometrics*, 125(1–2), 241–270.
+
+Imbens, G. W., and D. B. Rubin (2015): *Causal Inference for Statistics,
+Social, and Biomedical Sciences: An Introduction*. Cambridge: Cambridge
+University Press.
+
+Pearl, J., and E. Bareinboim (2014): "External Validity: From Do-Calculus to
+Transportability Across Populations," *Statistical Science*, 29(4), 579–595.
+
+Rosenbaum, P. R., and D. B. Rubin (1983): "The Central Role of the Propensity
+Score in Observational Studies for Causal Effects," *Biometrika*, 70(1),
+41–55.
+
+Rubin, D. B. (1974): "Estimating Causal Effects of Treatments in Randomized
+and Nonrandomized Studies," *Journal of Educational Psychology*, 66(5),
+688–701.
+
+Stuart, E. A., S. R. Cole, C. P. Bradshaw, and P. J. Leaf (2011): "The Use of
+Propensity Scores to Assess the Generalizability of Results From Randomized
+Trials," *Journal of the Royal Statistical Society: Series A*, 174(2),
+369–386.

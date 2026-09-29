@@ -1,0 +1,2 @@
+"metric","value","schools","weighting","scale","logarithm","interpretation"
+"Mean posterior-expected latent ATE log predictive score",-0.676602015619528,79,"Equal weight per school","Full-fit control-group standard deviation","Natural log","Higher is better for a fixed full-data reference posterior"
