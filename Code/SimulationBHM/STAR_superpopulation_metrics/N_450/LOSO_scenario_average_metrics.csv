@@ -1,0 +1,14 @@
+scenario,experiment,J,N_j,c_scale,metric,mean_over_replications,sd_across_replications,monte_carlo_se,replications
+N_450,within_school_size,40,450,1,bias,-0.013754331,0.121874163,0.012187416,100
+N_450,within_school_size,40,450,1,MAE,0.348920922,0.095793442,0.009579344,100
+N_450,within_school_size,40,450,1,RMSE,0.42380626,0.091052099,0.00910521,100
+N_450,within_school_size,40,450,1,mean_predictive_sd,0.449789574,0.057981241,0.005798124,100
+N_450,within_school_size,40,450,1,log_predictive_score,-0.586079201,0.2551765,0.02551765,100
+N_450,within_school_size,40,450,1,coverage_50,0.502,0.161420462,0.016142046,100
+N_450,within_school_size,40,450,1,mean_length_50,0.591945703,0.077730519,0.007773052,100
+N_450,within_school_size,40,450,1,coverage_80,0.8,0.116185154,0.011618515,100
+N_450,within_school_size,40,450,1,mean_length_80,1.113762749,0.148070965,0.014807096,100
+N_450,within_school_size,40,450,1,coverage_90,0.9,0.085581788,0.008558179,100
+N_450,within_school_size,40,450,1,mean_length_90,1.427541967,0.191148703,0.01911487,100
+N_450,within_school_size,40,450,1,coverage_95,0.951,0.059450344,0.005945034,100
+N_450,within_school_size,40,450,1,mean_length_95,1.757716961,0.228257406,0.022825741,100

@@ -1,0 +1,15 @@
+Predictive target: the true superpopulation treatment effect in a held-out study.
+Log predictive scores use natural logarithms; higher is better on the same outcome scale.
+RMSE is the supplied mean of replication-level RMSEs, not a pooled RMSE.
+Coverage measures calibration; interval length measures sharpness.
+Intervals are the equal-tailed predictive intervals computed by the metrics script.
+Dashed coverage lines indicate nominal coverage; open circles indicate baseline.
+All plots share a y-axis scale across panels within a figure.
+Tables retain full numerical precision in CSV; Markdown displays four decimals.
+Monte Carlo uncertainty bars enabled: TRUE.
+Bars show mean +/- 1.96 MCSE: approximate pointwise 95% intervals assuming independent replications and a normal approximation for the replication mean.
+Coverage MC intervals are truncated to [0,1]; near-boundary normal approximations may be inaccurate.
+MC intervals concern uncertainty in simulation means, not predictive uncertainty or variation across replications.
+MCSE and replication counts are also exported in presentation_metrics_with_mcse.csv.
+Intervals for scenario differences require the covariance of paired replication results; overlap of individual bars is not a formal test of differences.
+Baseline: J=40, c=1, N_j=150.
